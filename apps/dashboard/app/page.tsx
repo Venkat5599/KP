@@ -1,3 +1,4 @@
+import { LivePanel } from "../components/LivePanel";
 import { Verifier } from "../components/Verifier";
 import {
   ADMIN_ADDRESS,
@@ -18,17 +19,18 @@ export default function Page() {
   const denied = DECISIONS.filter((d) => d.verdict === "DENY").length;
 
   return (
-    <main className="page">
-      <header className="masthead">
-        <p className="eyebrow">Execution authorization · {CHAIN_NAME}</p>
-        <h1 className="wordmark">noyeet</h1>
-        <p className="thesis">
-          Agents do not get keys. They get permits, decided by what the chain says will
-          happen and enforced atomically when it does.
-        </p>
-      </header>
+    <div className="shell">
+      <main className="page">
+        <header className="masthead">
+          <p className="eyebrow">Execution authorization · {CHAIN_NAME}</p>
+          <h1 className="wordmark">noyeet</h1>
+          <p className="thesis">
+            Agents do not get keys. They get permits, decided by what the chain says will
+            happen and enforced atomically when it does.
+          </p>
+        </header>
 
-      <section className="ledger" aria-labelledby="ledger-heading">
+        <section className="ledger" aria-labelledby="ledger-heading">
         <h2 className="section-head" id="ledger-heading">
           <span className="rank">01</span>The verdict ledger
         </h2>
@@ -73,9 +75,9 @@ export default function Page() {
           </span>
           <span className="tally-figure">{denied}</span> refused
         </p>
-      </section>
+        </section>
 
-      <section aria-labelledby="how-heading">
+        <section aria-labelledby="how-heading">
         <h2 className="section-head" id="how-heading">
           <span className="rank">02</span>Why the refusal is possible
         </h2>
@@ -113,9 +115,9 @@ export default function Page() {
             <dd>{ADMIN_ADDRESS}</dd>
           </div>
         </dl>
-      </section>
+        </section>
 
-      <section aria-labelledby="tx-heading">
+        <section aria-labelledby="tx-heading">
         <h2 className="section-head" id="tx-heading">
           <span className="rank">03</span>Transactions
         </h2>
@@ -138,9 +140,9 @@ export default function Page() {
             </li>
           ))}
         </ul>
-      </section>
+        </section>
 
-      <section aria-labelledby="verify-heading">
+        <section aria-labelledby="verify-heading">
         <h2 className="section-head" id="verify-heading">
           <span className="rank">04</span>Verify a receipt
         </h2>
@@ -150,9 +152,9 @@ export default function Page() {
           implementations agree byte for byte. This runs entirely in the browser.
         </p>
         <Verifier />
-      </section>
+        </section>
 
-      <section aria-labelledby="tests-heading">
+        <section aria-labelledby="tests-heading">
         <h2 className="section-head" id="tests-heading">
           <span className="rank">05</span>Test suites
         </h2>
@@ -168,17 +170,20 @@ export default function Page() {
         <p className="tally">
           <span className="tally-figure">{TOTAL_TESTS}</span> tests, zero failing
         </p>
-      </section>
+        </section>
 
-      <footer className="footer">
-        <p className="colophon">
-          noyeet · guard {shorten(GUARD_ADDRESS, 8, 6)} · {CHAIN_NAME}
-        </p>
-        <p className="colophon">
-          Every figure on this page was returned by a live request or is checkable on
-          Etherscan.
-        </p>
-      </footer>
-    </main>
+        <footer className="footer">
+          <p className="colophon">
+            noyeet · guard {shorten(GUARD_ADDRESS, 8, 6)} · {CHAIN_NAME}
+          </p>
+          <p className="colophon">
+            Every figure on this page was returned by a live request or is checkable on
+            Etherscan.
+          </p>
+        </footer>
+      </main>
+
+      <LivePanel />
+    </div>
   );
 }

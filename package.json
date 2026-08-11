@@ -1,0 +1,9 @@
+{
+  "name": "noyeet",
+  "private": true,
+  "workspaces": ["packages/*", "apps/gateway"],
+  "scripts": {
+    "test": "bun test packages apps/gateway",
+    "purity": "bash scripts/check-purity.sh"
+  }
+}
