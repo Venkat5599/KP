@@ -1,0 +1,11 @@
+{
+  "name": "@noyeet/observability",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Dependency-free Prometheus registry and live metric collection.",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "bun test", "typecheck": "tsc --noEmit" },
+  "devDependencies": { "typescript": "^5.6.0", "@types/bun": "latest" },
+  "license": "MIT"
+}

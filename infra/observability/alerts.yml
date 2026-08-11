@@ -1,0 +1,59 @@
+# Alert rules.
+#
+# Each rule states a condition an operator would want to be woken for, and nothing else.
+# The guard being unable to refuse an unsafe intent is the only true page here: it means the
+# safety property the whole system exists to provide is not currently holding.
+groups:
+  - name: noyeet
+    rules:
+      - alert: GuardNotEnforcing
+        expr: noyeet_guard_healthy == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: The guard is not enforcing its invariants
+          description: >
+            A safe intent was not permitted, or an unsafe intent was not refused, for two
+            minutes. Either the guard is misconfigured or the simulation path is broken.
+            Agents should not be executing until this clears.
+
+      - alert: KeeperHubUnauthenticated
+        expr: noyeet_keeperhub_authenticated == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: The KeeperHub API key is not authenticating
+          description: The key is missing, revoked, or expired. No execution can happen.
+
+      - alert: SimulationLatencyHigh
+        expr: >
+          histogram_quantile(0.95, sum by (le) (rate(noyeet_simulation_duration_seconds_bucket[10m]))) > 2.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Guard simulation p95 is above the 2.5s objective
+          description: >
+            Authorization is slow enough that agents may time out waiting for a verdict.
+
+      - alert: InvariantMarginNarrowing
+        expr: noyeet_invariant_margin_wei < 50000000000000000
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: The refused intent is close to its bound
+          description: >
+            The margin between observed and required is under 0.05e18. The test intent is
+            near the threshold, so the health signal is losing its discriminating power.
+
+      - alert: UpstreamFailures
+        expr: increase(noyeet_upstream_failures_total[15m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Repeated failures reaching KeeperHub
+          description: More than three upstream failures in fifteen minutes.
