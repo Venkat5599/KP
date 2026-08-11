@@ -32,7 +32,7 @@ export default function Page() {
 
         <section className="ledger" aria-labelledby="ledger-heading">
         <h2 className="section-head" id="ledger-heading">
-          <span className="rank">01</span>The verdict ledger
+          The verdict ledger
         </h2>
         <p className="lede">
           Two of these calls hit the same contract, through the same function, with the same
@@ -79,7 +79,7 @@ export default function Page() {
 
         <section aria-labelledby="how-heading">
         <h2 className="section-head" id="how-heading">
-          <span className="rank">02</span>Why the refusal is possible
+          Why the refusal is possible
         </h2>
         <p className="body">
           Simulation returns a gas estimate and a revert flag, not a state diff, so post-state
@@ -119,7 +119,7 @@ export default function Page() {
 
         <section aria-labelledby="tx-heading">
         <h2 className="section-head" id="tx-heading">
-          <span className="rank">03</span>Transactions
+          Transactions
         </h2>
         <ul className="txs">
           {TRANSACTIONS.map((tx) => (
@@ -144,7 +144,7 @@ export default function Page() {
 
         <section aria-labelledby="verify-heading">
         <h2 className="section-head" id="verify-heading">
-          <span className="rank">04</span>Verify a receipt
+          Verify a receipt
         </h2>
         <p className="body">
           Every decision, including a refusal, produces a receipt. The digest is computed over
@@ -156,7 +156,7 @@ export default function Page() {
 
         <section aria-labelledby="tests-heading">
         <h2 className="section-head" id="tests-heading">
-          <span className="rank">05</span>Test suites
+          Test suites
         </h2>
         <ul className="suites">
           {SUITES.map((suite) => (
@@ -174,7 +174,7 @@ export default function Page() {
 
         <footer className="footer">
           <p className="colophon">
-            noyeet · guard {shorten(GUARD_ADDRESS, 8, 6)} · {CHAIN_NAME}
+            Guard {shorten(GUARD_ADDRESS, 8, 6)} on {CHAIN_NAME}
           </p>
           <p className="colophon">
             Every figure on this page was returned by a live request or is checkable on
