@@ -1,0 +1,775 @@
+<title>noyeet — PRD &amp; Architecture</title>
+<style>
+  :root {
+    --paper: #F7F6F3;
+    --paper-sunk: #EFEDE8;
+    --ink: #111412;
+    --ink-soft: #4A514C;
+    --ink-faint: #7C8480;
+    --rule: #D9D6CF;
+    --rule-strong: #BFBBB2;
+    --accent: #3C5A54;
+    --allow: #2F6B4F;
+    --hold: #A8762A;
+    --deny: #9E3D33;
+    --code-bg: #EDEBE5;
+
+    --serif: Iowan Old Style, "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+
+    --measure: 68ch;
+    --gutter: clamp(1.25rem, 4vw, 3rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #111412;
+      --paper-sunk: #171B19;
+      --ink: #E8E7E2;
+      --ink-soft: #A9AFAB;
+      --ink-faint: #7B827E;
+      --rule: #2A2F2C;
+      --rule-strong: #3C4340;
+      --accent: #7FA89F;
+      --allow: #6BAE87;
+      --hold: #D6A44F;
+      --deny: #D4756A;
+      --code-bg: #191D1B;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #111412;
+    --paper-sunk: #171B19;
+    --ink: #E8E7E2;
+    --ink-soft: #A9AFAB;
+    --ink-faint: #7B827E;
+    --rule: #2A2F2C;
+    --rule-strong: #3C4340;
+    --accent: #7FA89F;
+    --allow: #6BAE87;
+    --hold: #D6A44F;
+    --deny: #D4756A;
+    --code-bg: #191D1B;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16.5px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 var(--gutter) 6rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 78ch; margin: 0 auto; }
+
+  .masthead {
+    padding: clamp(3rem, 8vw, 5.5rem) 0 2rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1.4rem;
+  }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(2.6rem, 7vw, 4.2rem);
+    line-height: 1.02;
+    letter-spacing: -0.015em;
+    margin: 0 0 0.6rem;
+    text-wrap: balance;
+  }
+  .deck {
+    font-family: var(--serif);
+    font-size: clamp(1.1rem, 2.4vw, 1.35rem);
+    line-height: 1.45;
+    color: var(--ink-soft);
+    max-width: 46ch;
+    margin: 0 0 2.4rem;
+    text-wrap: balance;
+  }
+
+  .meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 1rem 1.5rem;
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    padding-top: 0.5rem;
+  }
+  .meta div { display: flex; flex-direction: column; gap: 0.25rem; }
+  .meta .k {
+    color: var(--ink-faint);
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    font-size: 0.68rem;
+  }
+  .meta .v { color: var(--ink); }
+
+  section { padding-top: 3.4rem; }
+
+  h2 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(1.6rem, 3.6vw, 2.05rem);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin: 0 0 1.2rem;
+    padding-bottom: 0.7rem;
+    border-bottom: 1px solid var(--rule-strong);
+    text-wrap: balance;
+  }
+  h2 .num {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-right: 0.9em;
+    vertical-align: 0.35em;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    font-weight: 650;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 2.2rem 0 0.7rem;
+  }
+  h4 {
+    font-family: var(--sans);
+    font-size: 0.95rem;
+    font-weight: 640;
+    margin: 1.6rem 0 0.4rem;
+  }
+
+  p { max-width: var(--measure); margin: 0 0 1rem; }
+  ul, ol { max-width: var(--measure); padding-left: 1.2rem; margin: 0 0 1rem; }
+  li { margin-bottom: 0.4rem; }
+  li::marker { color: var(--ink-faint); }
+
+  strong { font-weight: 640; }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--code-bg);
+    padding: 0.12em 0.38em;
+    border-radius: 2px;
+  }
+  pre {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    background: var(--paper-sunk);
+    border: 1px solid var(--rule);
+    border-left: 2px solid var(--accent);
+    padding: 1rem 1.1rem;
+    overflow-x: auto;
+    margin: 0 0 1.2rem;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  .lede {
+    font-family: var(--serif);
+    font-size: 1.12rem;
+    line-height: 1.5;
+    color: var(--ink);
+    border-left: 2px solid var(--accent);
+    padding-left: 1.1rem;
+    margin: 0 0 1.6rem;
+    max-width: 56ch;
+  }
+
+  .verdicts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin: 1.4rem 0 1.6rem;
+  }
+  .verdict { background: var(--paper); padding: 1.1rem 1.15rem; }
+  .verdict .tag {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.13em;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    margin-bottom: 0.55rem;
+  }
+  .verdict .tag::before {
+    content: "";
+    width: 0.62em; height: 0.62em;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .verdict.allow .tag { color: var(--allow); }
+  .verdict.hold  .tag { color: var(--hold); }
+  .verdict.deny  .tag { color: var(--deny); }
+  .verdict p { font-size: 0.88rem; color: var(--ink-soft); margin: 0; line-height: 1.5; }
+
+  .scroll { overflow-x: auto; margin: 0 0 1.4rem; border: 1px solid var(--rule); }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.85rem;
+    min-width: 34rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 0.62rem 0.85rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    background: var(--paper-sunk);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.id { font-family: var(--mono); font-size: 0.78rem; white-space: nowrap; color: var(--accent); }
+  td.num { font-family: var(--mono); font-size: 0.78rem; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .p0, .p1, .p2 {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+  .p0 { color: var(--deny); }
+  .p1 { color: var(--hold); }
+  .p2 { color: var(--ink-faint); }
+
+  .diagram {
+    background: var(--paper-sunk);
+    border: 1px solid var(--rule);
+    padding: 1.4rem 1rem;
+    margin: 0 0 0.7rem;
+    overflow-x: auto;
+  }
+  .diagram pre { background: none; border: none; padding: 0; margin: 0; }
+  figcaption {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 1.8rem;
+  }
+
+  .stack {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin: 0 0 1.4rem;
+  }
+  .layer { background: var(--paper); padding: 1rem 1.1rem; }
+  .layer .name {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 0.5rem;
+  }
+  .layer .pick { font-weight: 620; font-size: 0.92rem; margin-bottom: 0.3rem; }
+  .layer .why { font-size: 0.83rem; color: var(--ink-soft); line-height: 1.48; }
+
+  .note {
+    background: var(--paper-sunk);
+    border: 1px solid var(--rule);
+    border-left: 2px solid var(--hold);
+    padding: 1rem 1.15rem;
+    margin: 0 0 1.4rem;
+    font-size: 0.9rem;
+    max-width: var(--measure);
+  }
+  .note strong {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-family: var(--mono);
+    color: var(--hold);
+    font-weight: 700;
+  }
+  .note p:last-child { margin-bottom: 0; }
+
+  hr.end { border: none; border-top: 2px solid var(--ink); margin: 4rem 0 1.2rem; }
+  .colophon {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    line-height: 1.7;
+    max-width: var(--measure);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Product requirements &amp; system architecture</p>
+  <h1>noyeet</h1>
+  <p class="deck"><em>Your agent can't yeet your money.</em> Agents don't get keys. They get permits — and the permit is decided by what the chain says will happen, then enforced atomically when it does.</p>
+  <div class="meta">
+    <div><span class="k">Document</span><span class="v">PRD-001 · v1.0</span></div>
+    <div><span class="k">Status</span><span class="v">Locked for build</span></div>
+    <div><span class="k">Execution layer</span><span class="v">KeeperHub</span></div>
+    <div><span class="k">Networks</span><span class="v">Base · Ethereum</span></div>
+    <div><span class="k">Date</span><span class="v">2026-08-11</span></div>
+  </div>
+</header>
+
+<section>
+  <h2><span class="num">01</span>Problem</h2>
+
+  <p class="lede">An autonomous agent holding a private key is an unbounded liability. It decides, it signs, it broadcasts — and nothing between those three steps can tell it no.</p>
+
+  <p>Two failures are structural, not incidental, and neither is solved by better prompting.</p>
+
+  <p><strong>Nothing stops a bad transaction before it lands.</strong> Prompt injection, a hallucinated address, a decimals error, a stale oracle read. The model decides and the transaction is irreversible. Existing guardrails — Turnkey policies, Safe module roles, session-key permissions — all evaluate <em>calldata</em>. Calldata is what the agent claims it will do. It is not what will happen.</p>
+
+  <p><strong>Nothing proves what happened afterward.</strong> "The agent only rebalances below a 1.4 health factor." Prove it. Logs are self-reported, mutable, and stored by the party who would need to be lying. There is no receipt an outside party can check.</p>
+
+  <p>KeeperHub already solved <em>landing</em> the transaction — gas estimation, retries, nonce management, private routing. The open problem sits one step earlier and one step later: <strong>authorizing</strong> the transaction against its real consequences, and <strong>proving</strong> the decision afterward.</p>
+</section>
+
+<section>
+  <h2><span class="num">02</span>Thesis</h2>
+
+  <p>Simulation is available before broadcast. KeeperHub's <code>simulate: true</code> returns a gas estimate and a revert flag — but no state diff, so post-state cannot be read directly.</p>
+
+  <p>So invert it. <strong>Express every invariant as a revert condition inside the transaction itself.</strong> A guard contract executes the agent's calls, then asserts post-state and reverts if any invariant is broken. Run that composite through simulation: a revert means the future is bad, and the transaction is denied before it exists. Run the same composite for real, and the identical assertion enforces on-chain — so if state moves between simulation and inclusion, the transaction reverts instead of doing damage.</p>
+
+  <p class="lede">Prediction and enforcement become the same object. That is the primitive.</p>
+
+  <p>The consequence: noyeet expresses policies no calldata-level system can. <em>Deny if this transaction drops my health factor below 1.4.</em> <em>Deny if realized slippage exceeds 2%, measured from chain state rather than from the agent's claim.</em> <em>Deny if actual gas exceeds the estimate by more than 3×.</em></p>
+</section>
+
+<section>
+  <h2><span class="num">03</span>Goals and non-goals</h2>
+
+  <h3>Goals</h3>
+  <ul>
+    <li>Any agent framework executes onchain without ever holding a key.</li>
+    <li>Every execution is gated on simulated consequence, not just calldata shape.</li>
+    <li>Every decision — including refusals — produces a receipt a third party can verify.</li>
+    <li>Ambiguous actions escalate to a human instead of failing closed or open.</li>
+    <li>A new builder reaches their first guarded, landed transaction in one command.</li>
+  </ul>
+
+  <h3>Non-goals</h3>
+  <ul>
+    <li><strong>Not an agent framework.</strong> noyeet has no opinion on how the agent reasons.</li>
+    <li><strong>Not a wallet.</strong> Keys live in KeeperHub's Turnkey enclaves; noyeet never touches key material.</li>
+    <li><strong>Not a strategy.</strong> It does not decide what to do, only whether what was decided is allowed.</li>
+    <li><strong>Not an LLM in the decision path.</strong> The model is the untrusted input. Every rule is deterministic.</li>
+    <li><strong>Not a replacement for KeeperHub.</strong> It is the authorization and proof layer on top of it.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="num">04</span>Users and jobs</h2>
+
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr><th>User</th><th>Job to be done</th><th>Current workaround</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Agent developer</td><td>Ship an agent that touches real funds without lying awake about it</td><td>Testnet only, or a tiny hot wallet and hope</td></tr>
+        <tr><td>Treasury operator</td><td>Delegate routine execution, keep a veto on anything unusual</td><td>Manual multisig on every action</td></tr>
+        <tr><td>Protocol or DAO</td><td>Prove to token holders that an automation obeyed its mandate</td><td>Screenshots of a dashboard</td></tr>
+        <tr><td>Auditor, counterparty</td><td>Verify after the fact that stated policy was the enforced policy</td><td>Trust the operator's logs</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The wedge user is the agent developer. The others arrive once receipts exist.</p>
+</section>
+
+<section>
+  <h2><span class="num">05</span>The verdict model</h2>
+
+  <p>Two-state authorization forces a bad tradeoff: strict policy blocks legitimate work, loose policy admits attacks. noyeet has three states, and the third is where real deployments live.</p>
+
+  <div class="verdicts">
+    <div class="verdict allow">
+      <div class="tag">ALLOW</div>
+      <p>Static rules pass, simulation passes, invariants hold. Executes through KeeperHub with retry and gas management. Receipt anchored in the next batch.</p>
+    </div>
+    <div class="verdict hold">
+      <div class="tag">HOLD</div>
+      <p>Legal but unusual — size, novel counterparty, first use of a selector. Signed and held via Tempo, owner notified with the simulated outcome attached. Released on approval, cancelled on timeout.</p>
+    </div>
+    <div class="verdict deny">
+      <div class="tag">DENY</div>
+      <p>A rule failed or the guard reverted in simulation. No broadcast. The refusal is itself anchored — a blocked attack becomes permanent evidence.</p>
+    </div>
+  </div>
+
+  <p>HOLD is what makes the system deployable. The agent keeps moving on everything routine; anything unusual lands in a human's inbox with the consequence already computed, not a raw hex blob to squint at.</p>
+</section>
+
+<section>
+  <h2><span class="num">06</span>System architecture</h2>
+
+  <figure class="diagram">
+<pre class="mermaid">
+flowchart TB
+  A["Agent — any framework"] -->|intent envelope| G
+
+  subgraph NOYEET["noyeet control plane"]
+    G["Gateway: MCP, REST, webhook"] --> PV["Policy VM — pure, deterministic"]
+    PV --> OR["Oracle check — 3 feeds, median, deviation"]
+    OR --> SIM["Preflight — guard-wrapped simulate"]
+    SIM --> V{Verdict}
+  end
+
+  V -->|DENY| R["Receipt writer"]
+  V -->|HOLD| T["Tempo sign-and-hold, notify owner"]
+  V -->|ALLOW| X["Executor"]
+  T -->|approved| X
+  T -->|timeout| R
+
+  X --> KH["KeeperHub — gas, retry, nonce, Turnkey"]
+  KH --> GC["NoYeetGuard.sol — execute then assert"]
+  GC --> CH["Base / Ethereum"]
+
+  X --> R
+  R --> AN["Anchor workflow — scheduled, Merkle batched"]
+  AN --> KH
+  R --> DB[("Receipt store")]
+  DB --> VF["Public verifier"]
+</pre>
+  </figure>
+  <figcaption>Fig. 1 — Control plane. Every path, including refusals, terminates in a receipt.</figcaption>
+
+  <h3>Components</h3>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Component</th><th>Responsibility</th><th>Trust</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Gateway</strong></td><td>Accepts intents over MCP, REST, or webhook. Authenticates, rate-limits, assigns idempotency keys.</td><td>Untrusted input</td></tr>
+        <tr><td><strong>Policy VM</strong></td><td>Pure functions over intent and policy. No I/O, no network, no model. Emits verdict and machine-readable reason.</td><td>Trusted, fully tested</td></tr>
+        <tr><td><strong>Oracle check</strong></td><td>Reads three price sources through KeeperHub Web3 actions, takes the median via Math actions, enforces a deviation bound.</td><td>Trusted aggregation of untrusted feeds</td></tr>
+        <tr><td><strong>Preflight</strong></td><td>Wraps calls and invariants into a guard call, simulates, decodes revert data into the violated invariant.</td><td>Trusted</td></tr>
+        <tr><td><strong>Executor</strong></td><td>Serializes sends, applies idempotency, handles retries, cold starts, gas ceilings.</td><td>Trusted</td></tr>
+        <tr><td><strong>NoYeetGuard</strong></td><td>On-chain enforcement. Snapshots, executes, asserts, reverts with a typed error.</td><td>Trusted, immutable, verified</td></tr>
+        <tr><td><strong>Receipt writer</strong></td><td>Canonicalizes, hashes, persists, queues for anchoring.</td><td>Trusted</td></tr>
+        <tr><td><strong>Verifier</strong></td><td>Stateless. Recomputes the hash, checks the Merkle proof against the on-chain root.</td><td>Trustless by construction</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Request lifecycle</h3>
+
+  <figure class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  participant A as Agent
+  participant S as noyeet
+  participant K as KeeperHub
+  participant C as Chain
+
+  A->>S: submit intent (idempotency key)
+  S->>S: policy VM, static rules
+  S->>K: read oracle feeds, median
+  S->>K: execute_contract_call simulate=true
+  K->>C: eth_call guard(calls, invariants)
+  C-->>K: revert InvariantBroken(0, 1.12, 1.40)
+  K-->>S: wouldRevert true, error data
+  S->>S: decode, verdict DENY
+  S->>S: write and hash receipt
+  S-->>A: DENY, reason, receipt hash
+</pre>
+  </figure>
+  <figcaption>Fig. 2 — The deny path. On ALLOW the same composite is broadcast, and the guard asserts again at inclusion.</figcaption>
+</section>
+
+<section>
+  <h2><span class="num">07</span>The guard contract</h2>
+
+  <p>The whole thesis compiles down to one contract. It is deliberately small, immutable, and has no owner beyond an executor allowlist.</p>
+
+<pre><code>struct Call      { address target; uint256 value; bytes data; }
+struct Invariant {
+    address target;      // contract to read after execution
+    bytes   probe;       // staticcall calldata, e.g. getUserAccountData(addr)
+    uint8   word;        // which returned word to compare
+    Op      op;          // GTE | LTE | EQ | REL_DEC_MAX | REL_INC_MAX
+    uint256 threshold;   // absolute bound, or max delta for REL_*
+}
+
+error InvariantBroken(uint256 index, uint256 got, uint256 want);
+error ProbeFailed(uint256 index);
+
+function executeGuarded(Call[] calldata calls, Invariant[] calldata inv)
+    external
+    onlyExecutor
+    returns (bytes[] memory results)
+{
+    uint256[] memory before = _snapshot(inv);   // for relative bounds
+    results = _execute(calls);                  // the agent's intent
+    _assert(inv, before);                       // reverts on violation
+    emit Guarded(keccak256(abi.encode(calls)), inv.length);
+}</code></pre>
+
+  <p>Simulation and execution call the same function with the same arguments. There is no separate "check mode" that could drift from the enforcement path — a class of bug this design cannot have.</p>
+
+  <div class="note">
+    <strong>Open technical risk — resolve in hour one</strong>
+    <p>If <code>simulate: true</code> returns only a boolean without custom-error data, the violated invariant cannot be named from a single simulation. Fallback: run one probe simulation per invariant in parallel; the reverting probe identifies the violation. This costs latency, not correctness, and changes nothing structural. Cap invariants at four per intent if probe latency proves material.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">08</span>Data model</h2>
+
+  <h4>Intent envelope</h4>
+<pre><code>{
+  "id": "int_01J8...",            // ULID, also the idempotency key
+  "agent": { "id": "agt_7f", "framework": "eliza", "runId": "..." },
+  "chainId": 8453,
+  "calls": [{ "target": "0x...", "value": "0", "data": "0x..." }],
+  "invariants": [
+    { "target": "0xAaveV3Pool", "probe": "0x...", "word": 5,
+      "op": "GTE", "threshold": "1400000000000000000" }
+  ],
+  "rationale": "health factor 1.38, below 1.40 floor",
+  "evidence": [{ "source": "chainlink:ETH/USD", "value": "3021.44", "at": "..." }],
+  "policyHash": "0xab3f...",      // committed onchain before this run
+  "submittedAt": "2026-08-11T14:02:11Z"
+}</code></pre>
+
+  <h4>Receipt</h4>
+<pre><code>{
+  "intentHash":  "0x...",   // keccak256 of canonical intent
+  "policyHash":  "0xab3f...",
+  "guard":       "0xGuard...",
+  "verdict":     "DENY",
+  "reason":      { "code": "INVARIANT_BROKEN", "index": 0,
+                   "got": "1.12", "want": ">= 1.40" },
+  "simulation":  { "wouldRevert": true, "gasEstimate": "412331" },
+  "execution":   null,       // { txHash, gasUsed, block } on ALLOW
+  "anchor":      { "root": "0x...", "txHash": "0x...", "leafIndex": 42 },
+  "at": "2026-08-11T14:02:12Z"
+}</code></pre>
+
+  <p>Receipts are canonicalized with JCS before hashing, so any implementation reproduces the same digest. The verifier is stateless: recompute, prove, compare against the on-chain root.</p>
+</section>
+
+<section>
+  <h2><span class="num">09</span>Requirements</h2>
+
+  <p>Priority: <span class="p0">P0</span> ships or the project fails · <span class="p1">P1</span> ships for a complete product · <span class="p2">P2</span> cut first under pressure.</p>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>ID</th><th>Requirement</th><th>Acceptance</th><th>Pri</th></tr></thead>
+      <tbody>
+        <tr><td class="id">R-01</td><td>Guard contract executes calls and asserts absolute and relative invariants</td><td>Foundry invariant fuzzing passes; deployed and verified on Base</td><td><span class="p0">P0</span></td></tr>
+        <tr><td class="id">R-02</td><td>Preflight simulates the guard-wrapped composite and decodes the violation</td><td>A known-bad intent returns the correct invariant index</td><td><span class="p0">P0</span></td></tr>
+        <tr><td class="id">R-03</td><td>Policy VM is pure and typed: allowlists, caps, rate limits, windows, selectors, approval detection</td><td>Unit test per rule; zero I/O imports in the package</td><td><span class="p0">P0</span></td></tr>
+        <tr><td class="id">R-04</td><td>ALLOW executes through KeeperHub with idempotency and retry</td><td>Duplicate submission produces one transaction</td><td><span class="p0">P0</span></td></tr>
+        <tr><td class="id">R-05</td><td>Every verdict produces a canonical, hashed receipt</td><td>Two independent runs hash identically</td><td><span class="p0">P0</span></td></tr>
+        <tr><td class="id">R-06</td><td>Receipts anchor onchain — immediate for high value, batched hourly otherwise</td><td>Anchor transaction links resolve; verifier confirms inclusion</td><td><span class="p0">P0</span></td></tr>
+        <tr><td class="id">R-07</td><td>noyeet exposed as an MCP tool consumable by any framework</td><td>A third-party agent executes end to end with no noyeet-specific code</td><td><span class="p0">P0</span></td></tr>
+        <tr><td class="id">R-08</td><td>HOLD signs via Tempo, notifies, releases on approval, cancels on timeout</td><td>All three outcomes demonstrated live</td><td><span class="p1">P1</span></td></tr>
+        <tr><td class="id">R-09</td><td>Oracle deviation check across three feeds with median aggregation</td><td>A poisoned feed produces DENY</td><td><span class="p1">P1</span></td></tr>
+        <tr><td class="id">R-10</td><td>Policy hash committed onchain before use; changes pass a timelock</td><td>Retroactive policy edit is detectable by the verifier</td><td><span class="p1">P1</span></td></tr>
+        <tr><td class="id">R-11</td><td>Operator dashboard with live SLO panel from KeeperHub execution history</td><td>Gas estimate-vs-actual, retry, deny rate, hold latency all render</td><td><span class="p1">P1</span></td></tr>
+        <tr><td class="id">R-12</td><td>Public verifier — paste a receipt, get an inclusion proof</td><td>Verifies without server-held state</td><td><span class="p1">P1</span></td></tr>
+        <tr><td class="id">R-13</td><td>noyeet/verify published to the marketplace, paid per call over x402 and MPP</td><td>An external agent pays and receives a receipt; visible on x402scan</td><td><span class="p1">P1</span></td></tr>
+        <tr><td class="id">R-14</td><td><code>bunx create-noyeet-agent</code> — zero to first guarded transaction</td><td>Clean machine, one command, transaction lands on testnet</td><td><span class="p1">P1</span></td></tr>
+        <tr><td class="id">R-15</td><td>noyeet pays for premium feeds over x402 via the agentic wallet</td><td>402 challenge intercepted, paid, request retried</td><td><span class="p2">P2</span></td></tr>
+        <tr><td class="id">R-16</td><td>Solana path — static policy only, no guard contract</td><td>Asymmetry documented in the README, not hidden</td><td><span class="p2">P2</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">10</span>Stack</h2>
+
+  <p>Chosen for a system whose failure mode is losing someone's money: deterministic core, boring dependencies, everything on the decision path testable without a network.</p>
+
+  <div class="stack">
+    <div class="layer"><div class="name">Runtime</div><div class="pick">Bun + TypeScript, strict</div><div class="why">One toolchain for run, test, and bundle. No <code>any</code> permitted on the decision path.</div></div>
+    <div class="layer"><div class="name">API</div><div class="pick">Hono</div><div class="why">Small, typed, edge-portable. REST, MCP transport, and webhook triggers share one router.</div></div>
+    <div class="layer"><div class="name">Contracts</div><div class="pick">Foundry, Solidity 0.8.26</div><div class="why">Invariant fuzzing is the whole test strategy for the guard. <code>forge verify</code> runs in the pipeline.</div></div>
+    <div class="layer"><div class="name">Chain client</div><div class="pick">viem</div><div class="why">Typed ABI encoding and precise revert-data decoding, which the preflight path depends on.</div></div>
+    <div class="layer"><div class="name">Schema</div><div class="pick">Zod + JCS canonicalization</div><div class="why">Policies and intents validate at the boundary; canonical JSON makes receipt hashes reproducible.</div></div>
+    <div class="layer"><div class="name">Store</div><div class="pick">Postgres (Neon) + Drizzle</div><div class="why">Receipts are append-only with a hash chain. Database branching gives every pull request real data.</div></div>
+    <div class="layer"><div class="name">Queue</div><div class="pick">Postgres-backed job table</div><div class="why">One durable store, no Redis to lose. Serialized sends per wallet kill nonce races by construction.</div></div>
+    <div class="layer"><div class="name">Execution</div><div class="pick">KeeperHub MCP + CLI</div><div class="why">Gas estimation, retry, nonce, Turnkey custody, sponsored gas. noyeet signs nothing itself.</div></div>
+    <div class="layer"><div class="name">Dashboard</div><div class="pick">Next.js, React server components</div><div class="why">Operator surface and public verifier. The verifier ships static — it must outlive the service.</div></div>
+    <div class="layer"><div class="name">Telemetry</div><div class="pick">OpenTelemetry → Grafana</div><div class="why">One trace spans intent, policy, simulation, execution, anchor. The trace ID appears on every receipt.</div></div>
+    <div class="layer"><div class="name">Tests</div><div class="pick">Vitest, Foundry, Playwright</div><div class="why">Rule-level units, contract fuzzing, and one CI job that lands a real Sepolia transaction.</div></div>
+    <div class="layer"><div class="name">Delivery</div><div class="pick">Turborepo, GitHub Actions, Fly.io</div><div class="why">Typecheck, test, fuzz, deploy, verify, ship. Preview environment per pull request.</div></div>
+  </div>
+
+  <h3>Repository layout</h3>
+<pre><code>noyeet/
+├─ packages/
+│  ├─ policy/          pure decision engine — no I/O, no network, no model
+│  ├─ guard/           Foundry project: NoYeetGuard.sol + invariant fuzz
+│  ├─ receipts/        canonicalization, hashing, Merkle, verification
+│  ├─ keeperhub/       typed MCP and REST adapter, retry and idempotency
+│  └─ sdk/             @noyeet/policy — public consumer package
+├─ apps/
+│  ├─ gateway/         Hono service: MCP server, REST, webhook triggers
+│  ├─ dashboard/       operator console and live SLO panel
+│  └─ verifier/        static receipt verifier
+├─ templates/
+│  └─ create-noyeet-agent/
+├─ workflows/          exported KeeperHub visual-builder definitions
+└─ docs/               this PRD, threat model, chaos report</code></pre>
+
+  <p><code>packages/policy</code> having zero I/O imports is enforced in CI. It is both the testability argument and the security argument: the component that decides cannot be influenced by anything except its inputs.</p>
+</section>
+
+<section>
+  <h2><span class="num">11</span>Reliability engineering</h2>
+
+  <p>The product's claim is reliability, so failure handling is specified, not assumed. Each row below is induced deliberately and published with its KeeperHub execution ID.</p>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Failure</th><th>Detection</th><th>Response</th></tr></thead>
+      <tbody>
+        <tr><td>Nonce collision under concurrency</td><td>Send serialization per wallet</td><td>Single-writer queue; no parallel sends from one key</td></tr>
+        <tr><td>Gas spike mid-flight</td><td>Estimate exceeds policy ceiling</td><td>Exponential backoff, replacement transaction, ceiling honored or abort</td></tr>
+        <tr><td>RPC 5xx or timeout</td><td>Transport error</td><td>Retry with jitter under the same idempotency key — never a double spend</td></tr>
+        <tr><td>MCP cold start (502, 503, 504)</td><td><code>upstream_cold_start</code></td><td>Honor <code>retryAfterSeconds</code>, replay with matching idempotency key</td></tr>
+        <tr><td>Duplicate intent replay</td><td>ULID collision at the gateway</td><td>Return the original receipt; one transaction, not two</td></tr>
+        <tr><td>Rate limited (429)</td><td><code>Retry-After</code> header</td><td>Backoff, concurrency capped at two</td></tr>
+        <tr><td><strong>State moves between simulate and inclusion</strong></td><td>Guard assertion at execution</td><td><strong>Reverts on-chain.</strong> The atomic case — prediction was stale, enforcement was not</td></tr>
+        <tr><td>Revert with unrecognized selector</td><td>ABI decode miss</td><td>Fall through to raw data; deny with the selector surfaced, not a generic error</td></tr>
+        <tr><td>Notification channel down</td><td>Delivery failure on a HOLD</td><td>Fallback channel; a hold is never silently dropped</td></tr>
+        <tr><td>Anchor transaction fails</td><td>Receipt queued past its window</td><td>Re-anchored next batch; the hash chain has no gap</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Service objectives</h3>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Objective</th><th>Target</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td>Decision latency p95, static rules only</td><td class="num">&lt; 300 ms</td><td>Gateway trace</td></tr>
+        <tr><td>Decision latency p95, with simulation</td><td class="num">&lt; 2.5 s</td><td>Gateway trace</td></tr>
+        <tr><td>False-allow rate — invariant broken on-chain after ALLOW</td><td class="num">0</td><td>Guard revert counter</td></tr>
+        <tr><td>Receipt coverage of decisions</td><td class="num">100 %</td><td>Receipt store vs. decision log</td></tr>
+        <tr><td>Anchor lag p99</td><td class="num">&lt; 90 min</td><td>Anchor workflow</td></tr>
+        <tr><td>Execution success after retries</td><td class="num">&gt; 99 %</td><td><code>list_executions</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">12</span>Threat model</h2>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Adversary</th><th>Capability</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>Compromised agent</td><td>Submits arbitrary intents with convincing rationale</td><td>Rationale is metadata, never an input to the decision. The policy VM ignores it entirely</td></tr>
+        <tr><td>Prompt injection via data source</td><td>Steers the agent toward an attacker address</td><td>Recipient allowlist plus invariants on resulting balances — the address is checked and the outcome is checked</td></tr>
+        <tr><td>Oracle manipulation</td><td>Poisons one price feed</td><td>Median of three with a deviation bound; a single outlier cannot move the decision</td></tr>
+        <tr><td>MEV, sandwich between simulate and inclusion</td><td>Moves state after the check</td><td>The guard asserts at inclusion; the transaction reverts rather than executing at a bad price</td></tr>
+        <tr><td>Operator retroactively edits policy</td><td>Claims a different rule was in force</td><td>Policy hash committed onchain before the run; changes pass a timelocked workflow</td></tr>
+        <tr><td>Operator falsifies logs</td><td>Fabricates or deletes a receipt</td><td>Anchored hashes — a receipt absent from the on-chain root did not exist when claimed</td></tr>
+        <tr><td>Malicious executor key</td><td>Calls the guard directly</td><td>Executor allowlist, and invariants still assert — a rogue executor cannot break the bounds either</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The residual trust assumption is stated plainly: <strong>noyeet cannot force an agent to route through it.</strong> It replaces key custody with permit issuance, so an agent that never held a key has no path around the guard. That is the entire security argument, and it is worth more than any list of rules.</p>
+</section>
+
+<section>
+  <h2><span class="num">13</span>Milestones</h2>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>#</th><th>Milestone</th><th>Exit criteria</th></tr></thead>
+      <tbody>
+        <tr><td class="num">M1</td><td>Guard contract and fuzz suite</td><td>Invariant fuzzing green; deployed and verified on Base Sepolia</td></tr>
+        <tr><td class="num">M2</td><td>Simulation error-data spike</td><td>Custom-error decode confirmed, or probe fallback implemented</td></tr>
+        <tr><td class="num">M3</td><td>Policy VM</td><td>Every rule unit-tested; CI blocks any I/O import in the package</td></tr>
+        <tr><td class="num">M4</td><td>Executor and first landed transaction</td><td>A guarded transaction on Base mainnet, hash recorded</td></tr>
+        <tr><td class="num">M5</td><td><strong>Live agent switched on</strong></td><td>Continuous execution with real funds; counter climbing</td></tr>
+        <tr><td class="num">M6</td><td>HOLD path</td><td>Sign, notify, approve, release, and timeout-cancel all demonstrated</td></tr>
+        <tr><td class="num">M7</td><td>Receipts, anchoring, verifier</td><td>A third party verifies a receipt with no access to noyeet's database</td></tr>
+        <tr><td class="num">M8</td><td>Distribution</td><td>Marketplace listing live; an external agent pays over x402 and gets a receipt</td></tr>
+        <tr><td class="num">M9</td><td>Chaos report</td><td>All ten failures induced, handled, published with execution IDs</td></tr>
+        <tr><td class="num">M10</td><td>Developer experience</td><td>One-command template, README with threat model, upstream pull request opened</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>M5 is the pivot. Everything after it is built while real transactions accumulate underneath — which is what makes the execution claim unarguable rather than demonstrated once.</p>
+</section>
+
+<section>
+  <h2><span class="num">14</span>Success metrics</h2>
+
+  <ul>
+    <li><strong>Executions.</strong> Guarded transactions landed through KeeperHub, counted live and publicly.</li>
+    <li><strong>Refusals with teeth.</strong> Denials where simulation proved a real invariant break — the number showing the gate is load-bearing rather than decorative.</li>
+    <li><strong>Zero false-allows.</strong> No transaction that passed noyeet broke an invariant on-chain.</li>
+    <li><strong>External adoption.</strong> Agents outside this project routing intents through noyeet/verify and paying for it.</li>
+    <li><strong>Time to first guarded transaction.</strong> Measured on a clean machine, target under five minutes.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="num">15</span>Open questions</h2>
+
+  <ul>
+    <li>Does <code>simulate: true</code> surface custom-error data? Decides single-simulation versus per-invariant probes. <em>Resolve first.</em></li>
+    <li>What is the practical ceiling on invariants per intent before preflight latency breaches the 2.5 s objective?</li>
+    <li>Should invariant sets be reusable, named on-chain objects, so a policy references an audited bundle instead of inlining bounds?</li>
+    <li>Does the guard belong per-user, or as a shared singleton with per-caller executor scoping? Singleton is cheaper and more auditable; per-user isolates blast radius.</li>
+    <li>Do receipts need to be portable across execution layers, or is KeeperHub-anchored sufficient for the foreseeable roadmap?</li>
+  </ul>
+</section>
+
+<hr class="end">
+<p class="colophon">
+  noyeet · PRD-001 v1.0 · locked for build 2026-08-11<br>
+  Execution layer KeeperHub · Guard Solidity 0.8.26 · Control plane Bun and TypeScript<br>
+  Open question 1 gates milestone M2 and must be resolved before the policy VM is specified in code.
+</p>
+
+</div>

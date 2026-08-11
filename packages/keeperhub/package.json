@@ -1,0 +1,11 @@
+{
+  "name": "@noyeet/keeperhub",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Typed KeeperHub adapter: direct execution, idempotency, retry, per-wallet send serialization.",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "bun test", "typecheck": "tsc --noEmit" },
+  "devDependencies": { "typescript": "^5.6.0", "@types/bun": "latest" },
+  "license": "MIT"
+}

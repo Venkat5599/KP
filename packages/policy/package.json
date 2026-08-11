@@ -1,0 +1,16 @@
+{
+  "name": "@noyeet/policy",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Pure, deterministic decision engine for noyeet. No I/O, no network, no model.",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint:purity": "bash ../../scripts/check-purity.sh"
+  },
+  "dependencies": { "zod": "^3.23.8" },
+  "devDependencies": { "typescript": "^5.6.0", "@types/bun": "latest" },
+  "license": "MIT"
+}
