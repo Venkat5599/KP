@@ -9,3 +9,6 @@ broadcast/
 dist/
 .DS_Store
 *.log
+node_modules/
+.next/
+next-env.d.ts
