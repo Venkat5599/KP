@@ -4,10 +4,20 @@
   "workspaces": [
     "packages/*",
     "apps/gateway",
-    "apps/dashboard"
+    "apps/dashboard",
+    "apps/verifier",
+    "apps/keeper",
+    "templates/create-noyeet-agent"
   ],
+  "dependencies": {
+    "@noyeet/keeperhub": "workspace:*",
+    "@noyeet/receipts": "workspace:*",
+    "@noyeet/store": "workspace:*"
+  },
   "scripts": {
-    "test": "bun test packages apps/gateway",
-    "purity": "bash scripts/check-purity.sh"
+    "test": "bun test packages apps templates",
+    "typecheck": "bash -c 'for d in packages/* apps/* templates/*; do [ -f \"$d/package.json\" ] || continue; (cd \"$d\" && bun run typecheck) || exit 1; done'",
+    "purity": "bash scripts/check-purity.sh",
+    "anchor": "bun run scripts/anchoring.ts"
   }
 }

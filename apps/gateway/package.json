@@ -9,6 +9,7 @@
     "@noyeet/policy": "workspace:*",
     "@noyeet/keeperhub": "workspace:*",
     "@noyeet/receipts": "workspace:*",
+    "@noyeet/store": "workspace:*",
     "hono": "^4.6.0"
   },
   "devDependencies": { "typescript": "^5.6.0", "@types/bun": "latest" }

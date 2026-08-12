@@ -1,0 +1,17 @@
+{
+  "name": "create-noyeet-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Starter: one command from a clean machine to a guarded, landed testnet transaction.",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/bun": "latest"
+  },
+  "license": "MIT"
+}

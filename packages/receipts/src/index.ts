@@ -1,6 +1,7 @@
 export { canonicalize, canonicalBytes, CanonicalizationError, type JsonValue } from "./canonical.ts";
 export { compareBytes, concatBytes, fromHex, hashJson, keccak, toHex, type Hex } from "./hash.ts";
 export { buildTree, getProof, processProof, verifyProof, type MerkleTree } from "./merkle.ts";
+export { batchIdFor, buildAnchorBatch, type AnchorBatch, type AnchorInfo } from "./anchor.ts";
 export {
   receiptDigest,
   verifyDigest,

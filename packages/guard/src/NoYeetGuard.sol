@@ -137,15 +137,7 @@ contract NoYeetGuard {
         uint256 needed = (uint256(iv.word) + 1) * 32;
         if (ret.length < needed) {
             revert(
-                string.concat(
-                    PREFIX,
-                    "PROBE_SHORT:",
-                    _toString(i),
-                    ":",
-                    _toString(ret.length),
-                    ":",
-                    _toString(needed)
-                )
+                string.concat(PREFIX, "PROBE_SHORT:", _toString(i), ":", _toString(ret.length), ":", _toString(needed))
             );
         }
 
@@ -207,11 +199,7 @@ contract NoYeetGuard {
     }
 
     function _broken(uint256 index, uint256 got, uint256 want) private pure {
-        revert(
-            string.concat(
-                PREFIX, "INV:", _toString(index), ":", _toString(got), ":", _toString(want)
-            )
-        );
+        revert(string.concat(PREFIX, "INV:", _toString(index), ":", _toString(got), ":", _toString(want)));
     }
 
     /// @dev Base-10 uint to ASCII. Kept local so the guard carries no external dependency.

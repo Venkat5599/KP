@@ -14,11 +14,7 @@ contract MockLendingPool {
         healthFactor = newHf;
     }
 
-    function getUserAccountData(address)
-        external
-        view
-        returns (uint256, uint256, uint256, uint256, uint256, uint256)
-    {
+    function getUserAccountData(address) external view returns (uint256, uint256, uint256, uint256, uint256, uint256) {
         return (collateral, 0, 0, 0, 0, healthFactor);
     }
 
