@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { KeeperHubClient } from "@noyeet/keeperhub";
 import { parsePolicy } from "@noyeet/policy";
+import { MemoryStore } from "@noyeet/store";
 import { buildApp } from "../src/app.ts";
 import { loadConfig } from "../src/config.ts";
 import type { GatewayConfig } from "../src/config.ts";
+import { notifyHold } from "../src/notify.ts";
 
 const GUARD = "0x4Bd0501fb1c0dEecaCD3efd50340Cd82Bb8E7F0f" as const;
 
@@ -81,6 +83,8 @@ function config(): GatewayConfig {
     policyHash: ("0x" + "ab".repeat(32)) as `0x${string}`,
     guard: GUARD,
     guardAbi: JSON.stringify([{ type: "function", name: "executeGuarded", inputs: [], outputs: [] }]),
+    store: new MemoryStore(),
+    targets: {},
   };
 }
 
@@ -177,5 +181,149 @@ describe("gateway routes", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as { status: string };
     expect(body.status).toBe("completed");
+  });
+
+  test("every decision is persisted to the store", async () => {
+    const cfg = config();
+    const app = buildApp(cfg);
+    const response = await app.request("/v1/authorize", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ intent }),
+    });
+    const body = (await response.json()) as { persisted: boolean; receipt: { intentId: string } };
+    expect(body.persisted).toBe(true);
+    const stored = await cfg.store.get(body.receipt.intentId);
+    expect(stored?.verdict).toBe("ALLOW");
+  });
+
+  test("verify recomputes a receipt digest and checks a claimed value", async () => {
+    const app = buildApp(config());
+    const receiptJson = {
+      intentId: "int_v",
+      intentHash: "0x" + "aa".repeat(32),
+      policyHash: "0x" + "bb".repeat(32),
+      guard: GUARD,
+      chainId: 11155111,
+      verdict: "DENY",
+      reasons: [],
+      simulation: null,
+      execution: null,
+      at: "2026-08-12T06:00:00Z",
+    };
+    const response = await app.request("/v1/verify", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ receipt: receiptJson, claimedDigest: "0x" + "cc".repeat(32) }),
+    });
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { digest: string; matches: boolean | null };
+    expect(body.digest).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(body.matches).toBe(false);
+  });
+});
+
+describe("hold lifecycle", () => {
+  const app = buildApp(config());
+  // Value at/above the policy's review threshold of 0.5 ether triggers HOLD_LARGE_VALUE.
+  const bigIntent = {
+    ...intent,
+    id: "int_hold_1",
+    calls: [{ target: AAVE_POOL, value: "600000000000000000", data: "0x617ba0370000" }],
+  };
+
+  test("a large-value intent is held, not executed", async () => {
+    const response = await app.request("/v1/holds", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ intent: bigIntent, idempotencyKey: "idem-hold-1" }),
+    });
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      status: string;
+      holdId: string;
+      receipt: { verdict: string };
+    };
+    expect(body.status).toBe("held");
+    expect(body.receipt.verdict).toBe("HOLD");
+    expect(body.holdId).toMatch(/^hold_/);
+  });
+
+  test("the waiting queue lists the hold", async () => {
+    const response = await app.request("/v1/holds");
+    const body = (await response.json()) as { holds: { status: string }[] };
+    expect(body.holds.some((h) => h.status === "held")).toBe(true);
+  });
+
+  test("releasing a hold broadcasts the held intent", async () => {
+    const created = await app.request("/v1/holds", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ intent: { ...bigIntent, id: "int_hold_2" }, idempotencyKey: "idem-hold-2" }),
+    });
+    const createdBody = (await created.json()) as { holdId: string };
+
+    const response = await app.request(`/v1/holds/${createdBody.holdId}/release`, { method: "POST" });
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { status: string; executionId: string };
+    expect(body.status).toBe("released");
+    expect(body.executionId).toBe("exec_123");
+  });
+
+  test("a resolved hold cannot be resolved twice", async () => {
+    const created = await app.request("/v1/holds", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ intent: { ...bigIntent, id: "int_hold_3" }, idempotencyKey: "idem-hold-3" }),
+    });
+    const createdBody = (await created.json()) as { holdId: string };
+
+    await app.request(`/v1/holds/${createdBody.holdId}/cancel`, { method: "POST" });
+    const again = await app.request(`/v1/holds/${createdBody.holdId}/cancel`, { method: "POST" });
+    expect(again.status).toBe(404);
+  });
+
+  test("cancelling a hold never broadcasts", async () => {
+    const created = await app.request("/v1/holds", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ intent: { ...bigIntent, id: "int_hold_4" }, idempotencyKey: "idem-hold-4" }),
+    });
+    const createdBody = (await created.json()) as { holdId: string };
+
+    const response = await app.request(`/v1/holds/${createdBody.holdId}/cancel`, { method: "POST" });
+    const body = (await response.json()) as { status: string };
+    expect(body.status).toBe("cancelled");
+  });
+});
+
+describe("notifyHold", () => {
+  test("with no targets it is a silent no-op", async () => {
+    const result = await notifyHold(
+      { holdId: "h1", intentId: "i1", status: "held", digest: "0x0", reasons: [], at: "now" },
+      {},
+    );
+    expect(result).toEqual({ discord: false, telegram: false });
+  });
+
+  test("a failed webhook is reported, not thrown", async () => {
+    const result = await notifyHold(
+      { holdId: "h1", intentId: "i1", status: "held", digest: "0x0", reasons: [], at: "now" },
+      { discordWebhookUrl: "https://discord.invalid/hook" },
+      (async () => {
+        throw new Error("network down");
+      }) as unknown as typeof fetch,
+    );
+    expect(result.discord).toBe(false);
+  });
+
+  test("a healthy webhook reports sent", async () => {
+    const fetchImpl = (async () => new Response("ok", { status: 200 })) as unknown as typeof fetch;
+    const result = await notifyHold(
+      { holdId: "h1", intentId: "i1", status: "held", digest: "0x0", reasons: [{ code: "HOLD_LARGE_VALUE", message: "big" }], at: "now" },
+      { discordWebhookUrl: "https://discord.example/hook" },
+      fetchImpl,
+    );
+    expect(result.discord).toBe(true);
   });
 });

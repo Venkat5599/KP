@@ -1,5 +1,7 @@
 import { KeeperHubClient } from "@noyeet/keeperhub";
 import { parsePolicy, type Policy } from "@noyeet/policy";
+import { openStore, type ReceiptStore } from "@noyeet/store";
+import { envTargets, type NotifyTargets } from "./notify.ts";
 
 export interface GatewayConfig {
   readonly client: KeeperHubClient;
@@ -9,6 +11,10 @@ export interface GatewayConfig {
   readonly guard: `0x${string}`;
   /** JSON ABI of the guard's executeGuarded function. */
   readonly guardAbi: string;
+  /** Every decision lands here; Postgres when DATABASE_URL is set, memory otherwise. */
+  readonly store: ReceiptStore;
+  /** HOLD notification targets; empty when no webhook is configured. */
+  readonly targets: NotifyTargets;
 }
 
 const REQUIRED = [
@@ -84,5 +90,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     policyHash: env["NOYEET_POLICY_HASH"] as `0x${string}`,
     guard: env["NOYEET_GUARD_ADDRESS"] as `0x${string}`,
     guardAbi: env["NOYEET_GUARD_ABI"] ?? DEFAULT_GUARD_ABI,
+    store: openStore(env),
+    targets: envTargets(env),
   };
 }
