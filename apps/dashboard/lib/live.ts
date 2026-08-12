@@ -8,7 +8,7 @@
  * its own freshness is worse than no display.
  */
 
-import { EXECUTOR_ADDRESS, GUARD_ADDRESS } from "./decisions";
+import type { DashboardConfig } from "./env";
 
 export interface LedgerDecision {
   readonly id: string;
@@ -101,7 +101,7 @@ export interface ChainFact {
  * configured Sepolia endpoint when present, otherwise a public endpoint; either way the
  * read is live and unauthenticated, so it needs no secret.
  */
-async function rpcCall(data: string): Promise<string> {
+async function rpcCall(guardAddress: string, data: string): Promise<string> {
   const rpc =
     process.env["BASE_SEPOLIA_RPC_URL"] ?? "https://ethereum-sepolia-rpc.publicnode.com";
   const response = await fetch(rpc, {
@@ -111,7 +111,7 @@ async function rpcCall(data: string): Promise<string> {
       jsonrpc: "2.0",
       id: 1,
       method: "eth_call",
-      params: [{ to: GUARD_ADDRESS, data }, "latest"],
+      params: [{ to: guardAddress, data }, "latest"],
     }),
     cache: "no-store",
   });
@@ -125,11 +125,15 @@ const ADMIN_SELECTOR = "0xf851a440"; // admin()
 const IS_EXECUTOR_SELECTOR = "0xdebfda30"; // isExecutor(address)
 
 /** The guard's configuration as label/value facts for the page's facts list. */
-export async function readGuardConfig(): Promise<readonly ChainFact[]> {
+export async function readGuardConfig(config: DashboardConfig): Promise<readonly ChainFact[]> {
+  if (config.guardAddress === "" || config.executorAddress === "") return [];
   try {
     const [adminWord, executorWord] = await Promise.all([
-      rpcCall(ADMIN_SELECTOR),
-      rpcCall(`${IS_EXECUTOR_SELECTOR}${EXECUTOR_ADDRESS.slice(2).toLowerCase().padStart(64, "0")}`),
+      rpcCall(config.guardAddress, ADMIN_SELECTOR),
+      rpcCall(
+        config.guardAddress,
+        `${IS_EXECUTOR_SELECTOR}${config.executorAddress.slice(2).toLowerCase().padStart(64, "0")}`,
+      ),
     ]);
 
     return [
@@ -142,5 +146,16 @@ export async function readGuardConfig(): Promise<readonly ChainFact[]> {
   } catch {
     // A failed read is a missing fact, not a crashed page: render the facts we have.
     return [];
+  }
+}
+
+/** One live eth_call probe against the guard; true when the RPC answered. */
+export async function guardReachable(guardAddress: string): Promise<boolean> {
+  if (guardAddress === "") return false;
+  try {
+    await rpcCall(guardAddress, ADMIN_SELECTOR);
+    return true;
+  } catch {
+    return false;
   }
 }

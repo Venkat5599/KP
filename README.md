@@ -8,9 +8,9 @@
 
 Agents do not get keys. They get permits, decided by what the chain says will happen and enforced atomically when it does.
 
-### ▶ Live at https://dashboard-nu-two-93.vercel.app
+### ▶ Live at https://dashboard-nu-two-93-six.vercel.app
 
-[Live demo ↗](https://dashboard-nu-two-93.vercel.app) · [Repo ↗](https://github.com/Venkat5599/KP) · [Architecture ↓](#architecture) · [Run it locally ↓](#run-it-locally)
+[Live demo ↗](https://dashboard-nu-two-93-six.vercel.app) · [Repo ↗](https://github.com/Venkat5599/KP) · [Architecture ↓](#architecture) · [Run it locally ↓](#run-it-locally)
 
 Built for the KeeperHub hackathon. MIT licensed.
 
@@ -42,7 +42,7 @@ Built for the KeeperHub hackathon. MIT licensed.
 The deployed guard answers both sides of the argument on every request — nothing cached, nothing replayed:
 
 ```bash
-curl https://dashboard-nu-two-93.vercel.app/api/probe
+curl https://dashboard-nu-two-93-six.vercel.app/api/probe
 ```
 
 ```json

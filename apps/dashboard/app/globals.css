@@ -816,3 +816,87 @@ section {
   margin-left: auto;
   font-variant-numeric: tabular-nums;
 }
+
+/* Dashboard layout additions — same tokens, panel hierarchy. */
+
+/* Live health strip */
+.status-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin: 1.5rem 0 2rem;
+}
+.status-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper-raised);
+  font-size: 0.8rem;
+}
+.status-label {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  color: var(--ink-faint);
+}
+.status-detail {
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  word-break: break-word;
+}
+.status-chip.status-ok {
+  border-color: color-mix(in srgb, var(--allow) 40%, var(--rule));
+}
+.status-chip.status-bad {
+  border-color: color-mix(in srgb, var(--deny) 40%, var(--rule));
+}
+.status-chip.status-bad .status-detail {
+  color: var(--deny);
+}
+
+/* Section navigation */
+.dash-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 2.5rem;
+}
+.dash-nav a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-family: var(--mono);
+}
+.dash-nav a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Section anchor targets */
+section[id] {
+  scroll-margin-top: 1.5rem;
+}
+
+/* Facts: source tag next to the value */
+.fact-source {
+  display: block;
+  font-size: 0.68rem;
+  font-family: var(--mono);
+  color: var(--ink-faint);
+  margin-top: 0.15rem;
+}
+
+/* Transaction hash pending state */
+.tx-hash-pending {
+  color: var(--ink-faint);
+  font-style: italic;
+}
