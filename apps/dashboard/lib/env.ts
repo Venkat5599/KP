@@ -26,15 +26,6 @@ export interface DashboardConfig {
   readonly seedTransactions: readonly TransactionSeed[];
 }
 
-function optional(name: string): string | null {
-  const value = process.env[name];
-  return value === undefined || value === "" ? null : value;
-}
-
-function required(name: string, fallback: string): string {
-  return optional(name) ?? fallback;
-}
-
 function parseSeedTransactions(raw: string | null): readonly TransactionSeed[] {
   if (raw === null) return [];
   try {

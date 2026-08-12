@@ -26,10 +26,9 @@ export async function computeHealth(probe: ProbePayload): Promise<HealthPayload>
 
   return {
     at: new Date().toISOString(),
-    probe: {
-      live: probe.live,
-      reason: probe.live ? undefined : (probe.reason ?? "no live simulation ran"),
-    },
+    probe: probe.live
+      ? { live: true }
+      : { live: false, reason: probe.reason ?? "no live simulation ran" },
     guard: {
       reachable: guardOk,
       configured: config.guardAddress !== "",
