@@ -9,11 +9,15 @@ import {AnchorStore} from "../src/AnchorStore.sol";
  * sorted-pair and OZ-compatible (packages/receipts/src/merkle.ts), so the on-chain
  * verifier here must mirror exactly: sibling pairs hashed with the smaller hash
  * first. If the two drift, proofs that verify here fail in the SDK and vice versa.
+ *
+ * Every anchor also binds the policy hash that was in force for the batch, so a
+ * committed batch records not only that receipts existed, but under which policy.
  */
 contract AnchorStoreTest is Test {
     AnchorStore internal store;
     address internal admin = address(0xA11CE);
     address internal stranger = address(0xBAD);
+    bytes32 internal policy = keccak256("policy-v1");
 
     function setUp() public {
         store = new AnchorStore(admin);
@@ -22,36 +26,45 @@ contract AnchorStoreTest is Test {
     function testOnlyAdminCanAnchor() public {
         vm.prank(stranger);
         vm.expectRevert("NOYEET/1:NOT_ADMIN");
-        store.anchor(1, keccak256("x"));
+        store.anchor(1, keccak256("x"), policy);
     }
 
-    function testAnchorsAndRecordsBlockNumber() public {
+    function testAnchorsAndRecordsBlockNumberAndPolicy() public {
         bytes32 root = keccak256("root");
         vm.prank(admin);
-        uint256 blockNumber = store.anchor(7, root);
+        uint256 blockNumber = store.anchor(7, root, policy);
         assertEq(blockNumber, block.number);
-        (bytes32 stored, uint256 storedBlock) = store.anchors(7);
+        (bytes32 stored, bytes32 storedPolicy, uint256 storedBlock) = store.anchors(7);
         assertEq(stored, root);
+        assertEq(storedPolicy, policy);
         assertEq(storedBlock, block.number);
     }
 
     function testSameRootReAnchorIsIdempotent() public {
         bytes32 root = keccak256("root");
         vm.prank(admin);
-        store.anchor(7, root);
+        store.anchor(7, root, policy);
         vm.prank(admin);
-        uint256 blockNumber = store.anchor(7, root);
+        uint256 blockNumber = store.anchor(7, root, policy);
         assertEq(blockNumber, block.number);
-        (bytes32 stored,) = store.anchors(7);
+        (bytes32 stored,,) = store.anchors(7);
         assertEq(stored, root);
     }
 
     function testDifferentRootForSameBatchReverts() public {
         vm.prank(admin);
-        store.anchor(7, keccak256("a"));
+        store.anchor(7, keccak256("a"), policy);
         vm.prank(admin);
         vm.expectRevert("NOYEET/1:ANCHOR_CONFLICT");
-        store.anchor(7, keccak256("b"));
+        store.anchor(7, keccak256("b"), policy);
+    }
+
+    function testDifferentPolicyForSameBatchReverts() public {
+        vm.prank(admin);
+        store.anchor(7, keccak256("a"), policy);
+        vm.prank(admin);
+        vm.expectRevert("NOYEET/1:ANCHOR_CONFLICT");
+        store.anchor(7, keccak256("a"), keccak256("policy-v2"));
     }
 
     function testVerifyAcceptsHonestProof() public {
@@ -61,7 +74,7 @@ contract AnchorStoreTest is Test {
         bytes32 root = keccak256(abi.encodePacked(leaf0, leaf1));
 
         vm.prank(admin);
-        store.anchor(3, root);
+        store.anchor(3, root, policy);
 
         bytes32[] memory proof = new bytes32[](1);
         proof[0] = leaf1;
@@ -77,7 +90,7 @@ contract AnchorStoreTest is Test {
         bytes32 root = keccak256(abi.encodePacked(leaf0, leaf1));
 
         vm.prank(admin);
-        store.anchor(3, root);
+        store.anchor(3, root, policy);
 
         bytes32[] memory proof = new bytes32[](1);
         proof[0] = leaf1;

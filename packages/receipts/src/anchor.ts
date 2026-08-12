@@ -17,6 +17,7 @@ import type { Hex } from "./hash.ts";
 export interface AnchorInfo {
   readonly batchId: number;
   readonly root: Hex;
+  readonly policyHash: Hex;
   readonly leafIndex: number;
   readonly proof: readonly Hex[];
   readonly executionId: string;

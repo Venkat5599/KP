@@ -120,9 +120,9 @@ Live end-to-end (needs KEEPERHUB_API_KEY + funded executor on the guard):
 4. A real HOLD: large-value intent escalates, hold record created, Discord/Telegram notification delivered; release/cancel live.
 5. `apps/keeper` runs continuously — at least one automated RPC-read → gateway-submit cycle (M5's "runs during judging" claim).
 
-Live anchoring (needs funded deployer + admin wallet):
-6. `AnchorStore` deployed on Sepolia; admin set to the KeeperHub wallet.
-7. First real anchor: `bun run anchor` with `DATABASE_URL` + `ANCHOR_ADDRESS` → a Merkle root committed onchain.
+Live anchoring (needs org KeeperHub key + receipt store):
+6. ✅ AnchorStore deployed on Sepolia at `0x3Dc29f2C35f2840D9c7503c66dD3d0Cd468c4f6b`; admin = KeeperHub wallet (verified on chain). Deployer: fresh wallet `0x60DCAF2F…f919` (key at ~/.hermes/secrets, never in repo).
+7. First real anchor: `bun run anchor` with `DATABASE_URL` + `ANCHOR_ADDRESS` → a Merkle root **and the batch policy hash** committed onchain (`anchor(batchId, root, policyHash)`, tested).
 8. Verification against the anchored root: a receipt proves against the on-chain root via `apps/verifier`, not just locally.
 
 Score: 92/100 — launchable. No funds at risk (testnet, no owner keys in repo, guard
