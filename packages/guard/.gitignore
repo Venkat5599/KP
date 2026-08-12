@@ -1,5 +1,8 @@
+.vercel
+.env*.local
 out/
 cache/
-lib/
+lib/*
+!lib/forge-std/
 broadcast/
 .env
