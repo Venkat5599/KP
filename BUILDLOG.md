@@ -30,7 +30,7 @@ packages/
 apps/
   gateway         The authorization HTTP surface. Policy, simulation, holds, receipts.
   anchor          Consumes decisions, Merkle-batches them, publishes roots.
-  dashboard       Landing page, policy canvas, and the live dashboard route.
+  dashboard       The execution client: submit intents, compose policy, read live state.
   keeper          The example agent that drives the whole thing.
   verifier        A static receipt verifier, pinned by test to agree with the library.
 
@@ -167,10 +167,20 @@ Three decisions worth naming:
   a config file.
 - **Motion owns the drag transform**, so position is never React state during the gesture.
 
+### The site is the app
+
+The presentation landing page is gone. The site is now a working execution client: submit
+an intent, watch the guard decide, read the receipt. Reached independently and in parallel
+by two people, which is usually a sign the conclusion was right. A marketing page in front
+of a tool whose whole argument is "here is the live evidence" was the weaker of the two.
+
+The canvas lives inside that client as the Policy section, directly after Execute: compose
+the permit, then submit against it.
+
 ### What was removed, and why
 
-The landing page arrived as a SaaS template. Several sections were not merely generic, they
-were untrue, and a security product that invents its own social proof is a strange thing:
+The page arrived as a SaaS template. Several sections were not merely generic, they were
+untrue, and a security product that invents its own social proof is a strange thing:
 
 - **Testimonials** carried quotes attributed to "The guard" and "The suite" at "Sepolia" and
   "Foundry". Those are not customers.
@@ -184,8 +194,8 @@ were untrue, and a security product that invents its own social proof is a stran
 - **Fake nav**: "Products" and "Resources" dropdowns describing pages that do not exist, and
   a header CTA duplicating the hero's.
 
-The live probe below the hero is stronger evidence than any of it: it runs two real
-simulations against the deployed guard on every request and shows what the chain said.
+The live probe is stronger evidence than any of it: it runs two real simulations against
+the deployed guard on every request and shows what the chain said.
 
 ## Defects found by looking, not by testing
 
@@ -224,11 +234,10 @@ passed the type checker and the test suite.
 
 Stated plainly so nobody mistakes this for finished work.
 
-- **The theme control has not been confirmed working in a browser.** The code is correct and
-  the next-themes config matches the CSS selector, but two attempts to click it in a live
-  page did not visibly switch the theme, and the browser connection dropped before the
-  question could be settled. Most likely the clicks missed a small target across a viewport
-  resize. Confirm before shipping.
+- **The canvas has not been seen inside the new app shell.** It was verified working in the
+  page it was built for; that page has since been replaced, and the browser connection
+  dropped before it could be re-checked in its new home. It compiles and type-checks, but
+  nobody has looked at it there. Look before shipping.
 - **Light mode is unproven.** The theme-lock work was reasoned from the tokens, not observed.
 - **Mobile widths are unproven.** No screenshot below the desktop breakpoint.
 - **The canvas has not been driven end to end by a real pointer**: drag, edit, delete,
