@@ -1,7 +1,6 @@
 "use client";
 
 import { motion, type Transition } from "motion/react";
-import { CircleCheck, Star } from "lucide-react";
 import type { ReactNode } from "react";
 
 const EASE = [0.23, 1, 0.32, 1] as const;
@@ -9,8 +8,8 @@ const EASE = [0.23, 1, 0.32, 1] as const;
 const ENTITIES = ["KeeperHub", "Turnkey", "Sepolia", "Etherscan", "Vercel"];
 
 const DEPLOYMENT_STATS = [
-  { icon: "✓", label: "Guard verified on Etherscan", change: "Sepolia" },
-  { icon: "⚙", label: "156 tests, 0 failing", change: "CI" },
+  { label: "Guard verified on Etherscan", change: "Sepolia" },
+  { label: "164 tests, 0 failing", change: "CI" },
 ];
 
 const cardAnimation = {
@@ -56,7 +55,7 @@ function PhoneMockup({
   );
 }
 
-function AvatarStack(): ReactNode {
+function EntityPills(): ReactNode {
   return (
     <div className="flex flex-wrap items-center justify-center gap-2">
       {ENTITIES.map((name) => (
@@ -71,22 +70,13 @@ function AvatarStack(): ReactNode {
   );
 }
 
-function DeploymentStat({
-  icon,
-  label,
-  change,
-}: {
-  icon: string;
-  label: string;
-  change: string;
-}): ReactNode {
+function DeploymentStat({ label, change }: { label: string; change: string }): ReactNode {
   return (
-    <div className="flex items-center justify-between bg-background rounded-xl p-3">
-      <div className="flex items-center gap-2">
-        <span className="text-lg">{icon}</span>
-        <span className="text-foreground font-medium">{label}</span>
-      </div>
-      <span className="text-black text-sm font-medium">{change}</span>
+    <div className="flex items-center justify-between rounded-xl bg-background p-3">
+      <span className="font-medium text-foreground">{label}</span>
+      {/* This row sits on bg-background, which flips with the theme, so its ink flips
+          too. The original text-black vanished in dark mode. */}
+      <span className="text-sm font-medium text-muted-foreground">{change}</span>
     </div>
   );
 }
@@ -171,7 +161,6 @@ function ProjectCardContent(): ReactNode {
           <p className="text-base font-semibold text-neutral-900">VERDICT</p>
           <p className="text-base font-semibold text-neutral-900">DENY</p>
         </div>
-        <CircleCheck className="opacity-25 text-black" aria-hidden="true" />
       </div>
 
       <div className="absolute bottom-3 left-5 flex items-center gap-2 text-neutral-700 text-xs tracking-widest" aria-hidden="true">
@@ -225,12 +214,12 @@ function DashboardCard(): ReactNode {
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-neutral-900 rounded-2xl px-5 py-3 shadow-xl z-20 whitespace-nowrap">
           <div className="flex items-center gap-2 mb-0.5">
             <span className="text-neutral-400 text-xs">Build status</span>
-            <span className="text-neutral-500 text-xs">ⓘ</span>
+            <span className="text-neutral-500 text-xs"></span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-lg font-medium text-white">156 tests</span>
+            <span className="text-lg font-medium text-white">164 tests</span>
             <span className="text-xs font-medium text-accent bg-accent/20 px-2 py-0.5 rounded">
-              ✓ 0 failing
+              0 failing
             </span>
           </div>
         </div>
@@ -256,12 +245,11 @@ function TrustedByCard(): ReactNode {
       </div>
 
       <div className="transition-transform duration-500 ease-out group-hover:scale-105">
-        <AvatarStack />
+        <EntityPills />
       </div>
 
       <div className="flex items-center gap-2 mt-5 text-card-foreground-muted transition-transform duration-500 ease-out group-hover:scale-105">
-        <Star className="size-4 fill-current" />
-        <span className="text-xs font-medium">verified on Etherscan · fuzzed · CI green</span>
+        <span className="text-xs font-medium">verified on Etherscan, fuzzed, CI green</span>
       </div>
     </motion.div>
   );
@@ -285,7 +273,7 @@ function IntegrationsCard(): ReactNode {
 
       <div className="flex flex-col gap-2 mt-6 transition-transform duration-500 ease-out group-hover:scale-[1.02]">
         {DEPLOYMENT_STATS.map((stat) => (
-          <DeploymentStat key={stat.icon} {...stat} />
+          <DeploymentStat key={stat.label} {...stat} />
         ))}
       </div>
     </motion.div>

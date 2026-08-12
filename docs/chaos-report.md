@@ -17,9 +17,9 @@ Environment: `anvil --fork-url <public Sepolia RPC>`; executor impersonated as
 
 | # | Failure induced | What the system did | Evidence |
 | --- | --- | --- | --- |
-| 1 | Safe rebalance (ends at HF 1.5) | Permitted; broadcast mined | `cast call` → success; mined tx `0x8ec94383bfc6de244ea9673c3a291a711e0f73fb21decc4f1e60a19d80c9c539` status 1 |
+| 1 | Safe rebalance (ends at HF 1.5) | Permitted; broadcast mined | `cast call` -> success; mined tx `0x8ec94383bfc6de244ea9673c3a291a711e0f73fb21decc4f1e60a19d80c9c539` status 1 |
 | 2 | Unsafe rebalance (ends at HF 1.12) — "structurally perfect calldata" | **Reverted on-chain**: `NOYEET/1:INV:0:1120000000000000000:1400000000000000000`; health factor unchanged afterwards (atomicity) | mined tx status 0 with that revertReason; post-check HF = 1.5, not 1.12 |
-| 3 | Caller not an executor | Refused: `NOYEET/1:NOT_EXECUTOR` | `cast call --from 0x…BAD` → revert with reason |
+| 3 | Caller not an executor | Refused: `NOYEET/1:NOT_EXECUTOR` | `cast call --from 0x…BAD` -> revert with reason |
 | 4 | Re-entrant executor contract | Refused: `NOYEET/1:REENTRANT` | `packages/guard/test/Reentrancy.t.sol` (passes) |
 | 5 | Probe reverts / probe too short / inner call dies silent | `PROBE_FAILED:<i>` / `PROBE_SHORT:<i>:<len>:<need>` / `CALL_FAILED` grammar, asserted verbatim | `packages/guard/test/NoYeetGuard.t.sol` + `Mocks.sol` (boom, single-word getter, failSilent) |
 | 6 | Anchor same batch, different root | `NOYEET/1:ANCHOR_CONFLICT`; same-root re-anchor is a no-op | `packages/guard/test/AnchorStore.t.sol` (7 tests) |
@@ -55,7 +55,7 @@ the dashboard performs the same calls live. Induce procedure included.
 | --- | --- | --- | --- |
 | 17 | Real 429 / real cold start against the API | Drive the keeper at high frequency; watch `noyeet_upstream_failures_total{kind="timeout"/"network"}` and `noyeet_simulation_duration_seconds` | `/api/metrics` on the live dashboard |
 | 18 | Live execution ID for a guarded broadcast | `bun run keeper` (apps/keeper) with a position below the floor; the gateway returns `executionId`; the tx lands on Etherscan | dashboard "Transactions" row; `GET /v1/executions/:id` |
-| 19 | HOLD → human release/cancel with notification | Policy with `holdAbove.nativeValue` set; `DISCORD_WEBHOOK_URL`/`TELEGRAM_*` configured | `POST /v1/holds`, `POST /v1/holds/:id/release\|cancel` (tests: `gateway` hold lifecycle suite) |
+| 19 | HOLD -> human release/cancel with notification | Policy with `holdAbove.nativeValue` set; `DISCORD_WEBHOOK_URL`/`TELEGRAM_*` configured | `POST /v1/holds`, `POST /v1/holds/:id/release\|cancel` (tests: `gateway` hold lifecycle suite) |
 | 20 | Marketplace x402 payment flow | Import `workflows/noyeet-verify.json`, wire the payment gate, publish | workflows/README.md |
 
 ## Reproduction

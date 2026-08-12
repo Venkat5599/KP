@@ -15,6 +15,19 @@
   --card-secondary: #e8f5c8;
   --card-foreground: #171717;
   --card-foreground-muted: #525252;
+  /*
+   * Ink for the always-lime surface.
+   *
+   * --card-primary is the same lime in both themes, so its foreground must not flip.
+   * --card-foreground does flip, which makes it correct on --card-secondary (that surface
+   * flips too) and wrong on --card-primary, where it would put near-white text on lime.
+   */
+  --on-accent: #17210a;
+  --on-accent-muted: #3f4d28;
+  --allow: #2f7d32;
+  --hold: #9a6b00;
+  --deny: #b3261e;
+  --rule: #5b6470;
   --phone-screen: #f5f5f5;
   --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
@@ -32,6 +45,19 @@
   --card-primary: #a8d946;
   --card-secondary: #2a3a1a;
   --card-foreground: #fafafa;
+  /*
+   * Ink for the always-lime surface.
+   *
+   * --card-primary is the same lime in both themes, so its foreground must not flip.
+   * --card-foreground does flip, which makes it correct on --card-secondary (that surface
+   * flips too) and wrong on --card-primary, where it would put near-white text on lime.
+   */
+  --on-accent: #17210a;
+  --on-accent-muted: #3f4d28;
+  --allow: #7fc47f;
+  --hold: #e0b354;
+  --deny: #f0857d;
+  --rule: #8a93a0;
   --card-foreground-muted: #d4d4d4;
   --phone-screen: #f5f5f5;
 }
@@ -45,6 +71,12 @@
   --color-border: var(--border);
   --color-ring: var(--ring);
   --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-on-accent-muted: var(--on-accent-muted);
+  --color-allow: var(--allow);
+  --color-hold: var(--hold);
+  --color-deny: var(--deny);
+  --color-rule: var(--rule);
   --color-card-primary: var(--card-primary);
   --color-card-secondary: var(--card-secondary);
   --color-card-foreground: var(--card-foreground);
@@ -193,5 +225,58 @@ body {
   .site-frame,
   .site-corner {
     display: none;
+  }
+}
+
+
+/*
+ * The policy canvas.
+ *
+ * The surface reads as a work area rather than a page: a fine dot field, sized to the same
+ * 8px module the blocks snap to, so a dragged block visibly lands on the grid instead of
+ * floating at an arbitrary offset. The dots are a working guide, not decoration, which is
+ * why they are tied to the snap increment rather than chosen for looks.
+ */
+.canvas-surface {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    color-mix(in oklab, var(--muted-foreground) 26%, transparent) 1px,
+    transparent 0
+  );
+  background-size: 8px 8px;
+  background-position: -1px -1px;
+}
+
+/*
+ * A block is cut with a notch on its left edge, which reads as a socket. The shape carries
+ * the policy-versus-invariant distinction alongside colour, so it survives for anyone who
+ * cannot rely on hue. Padding on the left clears the cut so no text is ever sliced by it.
+ */
+.canvas-block {
+  padding-left: 6px;
+  clip-path: polygon(
+    0 0, 100% 0, 100% 100%, 0 100%, 0 calc(50% + 14px), 6px calc(50% + 8px),
+    6px calc(50% - 8px), 0 calc(50% - 14px)
+  );
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 8%, transparent);
+  transition: box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.canvas-block-selected {
+  box-shadow:
+    0 1px 3px color-mix(in oklab, var(--foreground) 12%, transparent),
+    0 0 0 1px var(--ring);
+}
+
+.palette-item[draggable="true"] {
+  cursor: grab;
+}
+.palette-item[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-block {
+    transition: none;
   }
 }

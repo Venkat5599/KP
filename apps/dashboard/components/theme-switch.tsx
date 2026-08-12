@@ -1,54 +1,55 @@
 "use client";
 
-import { Moon, Sun } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTheme } from "next-themes";
-import { useSyncExternalStore, type ReactNode } from "react";
 
-function useIsMounted(): boolean {
-  return useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
-  );
-}
+/**
+ * Theme control.
+ *
+ * Not a pill sliding a knob between a sun and a moon. That switch is on every generated
+ * site, and it also hides what it does behind two ambiguous glyphs. Three labelled options
+ * say plainly what each one is, including the system default, which the two-state version
+ * cannot express at all.
+ *
+ * Rendering is deferred until mount because the resolved theme is not known during SSR;
+ * marking the current option before hydration would flash the wrong one.
+ */
+const OPTIONS = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "system", label: "Auto" },
+] as const;
 
 export function ThemeSwitch(): ReactNode {
-  const mounted = useIsMounted();
-  const { setTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
-  const toggleTheme = (): void => {
-    setTheme(resolvedTheme === "dark" ? "light" : "dark");
-  };
-
-  if (!mounted) {
-    return (
-      <div className="fixed bottom-6 right-6 z-50">
-        <button
-          className="w-12 h-12 rounded-full bg-foreground/10 opacity-30 cursor-not-allowed"
-          aria-label="Toggle theme"
-          disabled
-        />
-      </div>
-    );
-  }
-
-  const isDark = resolvedTheme === "dark";
+  useEffect(() => setMounted(true), []);
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
-      <button
-        onClick={toggleTheme}
-        className="w-10 h-10 cursor-pointer rounded-full bg-frame text-foreground flex items-center justify-center opacity-30 hover:opacity-100 transition-opacity duration-300 shadow-lg hover:shadow-xl"
-        aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-        aria-pressed={isDark}
-        type="button"
-      >
-        {isDark ? (
-          <Sun className="w-5 h-5" aria-hidden="true" />
-        ) : (
-          <Moon className="w-5 h-5" aria-hidden="true" />
-        )}
-      </button>
+    <div
+      role="group"
+      aria-label="Colour theme"
+      className="inline-flex items-center gap-0.5 rounded-lg border border-border p-0.5"
+    >
+      {OPTIONS.map((option) => {
+        const active = mounted && theme === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => setTheme(option.value)}
+            aria-pressed={active}
+            className={`rounded-[6px] px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              active
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

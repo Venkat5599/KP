@@ -32,8 +32,8 @@
 
 ## Recovery drills
 
-- Boot the gateway with no env → it must exit non-zero naming the missing variables.
-- Restart the gateway with a live Postgres store → receipts survive; holds do not
+- Boot the gateway with no env -> it must exit non-zero naming the missing variables.
+- Restart the gateway with a live Postgres store -> receipts survive; holds do not
   (by design); re-submitted intents deduplicate.
 - Verify a receipt offline in the static verifier app with the dashboard down —
   proves verification is not server-dependent.

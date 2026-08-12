@@ -59,7 +59,7 @@ completely straight. The name is the only joke, which is why it works.
 ## Milestones
 
 ### M0 — Rename
-`docs/sentinel-prd.html` → `docs/noyeet-prd.html`; replace product name throughout; republish the
+`docs/sentinel-prd.html` -> `docs/noyeet-prd.html`; replace product name throughout; republish the
 artifact to the same URL. Fifteen minutes, done before any code.
 
 ### M1 — Guard contract
@@ -75,7 +75,7 @@ artifact to the same URL. Fifteen minutes, done before any code.
 Confirm whether KeeperHub `execute_contract_call` with `simulate: true` returns **custom-error data**
 or only a boolean.
 
-- If error data: decode with viem → name the violated invariant from one simulation
+- If error data: decode with viem -> name the violated invariant from one simulation
 - If not: per-invariant probe simulations in parallel; the reverting probe identifies it. Cap
   invariants at 4/intent if latency bites.
 - Exit: decode path chosen and proven against a deliberately-reverting intent
@@ -96,19 +96,19 @@ must never reach a decision function.
 - Typed MCP/REST adapter: `execute_contract_call`, `execute_transfer`, `get_direct_execution_status`,
   `get_spending_limits`, `list_executions`
 - Idempotency key on every send; single-writer queue per wallet (kills nonce races)
-- Retry with jitter; `upstream_cold_start` → honor `retryAfterSeconds` with matching idempotency key
+- Retry with jitter; `upstream_cold_start` -> honor `retryAfterSeconds` with matching idempotency key
 - Exit: **a guarded transaction landed on Base mainnet, hash recorded**
 
-### M5 — Live agent on ← pivot
+### M5 — Live agent on <- pivot
 Aave v3 health-factor keeper on Base, small real position, invariant `healthFactor >= 1.40`.
 Runs continuously to the end of judging. Everything after this is built while transactions accumulate.
 
 ### M6 — HOLD path
-`tempo_sign_and_hold` → notify (Discord/Telegram, with fallback channel) → `tempo_release_hold` on
+`tempo_sign_and_hold` -> notify (Discord/Telegram, with fallback channel) -> `tempo_release_hold` on
 approval / `tempo_cancel_hold` on timeout. All three outcomes demonstrated.
 
 ### M7 — Receipts, anchoring, verifier
-`packages/receipts` — JCS canonicalization → keccak256 → Merkle. Immediate anchor for high value,
+`packages/receipts` — JCS canonicalization -> keccak256 -> Merkle. Immediate anchor for high value,
 hourly batch via KeeperHub **scheduled workflow**. `apps/verifier` ships static and stateless.
 
 ### M8 — Distribution
@@ -120,10 +120,10 @@ tail / hold approve.
 ### M9 — Chaos report
 `docs/chaos-report.md`. Induce all ten PRD §11 failures, publish each with its KeeperHub execution ID:
 nonce collision, gas spike, RPC 5xx, cold start, duplicate replay, 429, **state-moves-after-simulate
-→ guard reverts on-chain**, unknown revert selector, notification channel down, anchor failure.
+-> guard reverts on-chain**, unknown revert selector, notification channel down, anchor failure.
 
 ### M10 — DX
-`bunx create-noyeet-agent` (clean machine → landed testnet tx). README with architecture diagram,
+`bunx create-noyeet-agent` (clean machine -> landed testnet tx). README with architecture diagram,
 60-second quickstart, threat model, explicit non-goals. Upstream PR to the KeeperHub repo for the
 sharpest setup friction hit (stacks the $500 onboarding bounty). Demo video < 3 min.
 
@@ -157,19 +157,19 @@ Playwright, Turborepo + GitHub Actions + Fly.io. **bun/bunx only, never npm/npx.
 - M1 `forge test` in `packages/guard` — invariant fuzz green
 - M2 deliberately-reverting intent returns the correct invariant index (or the probe fallback does)
 - M3 `bun test packages/policy` — every rule covered; CI check fails on any I/O import
-- M4 submit the same intent twice → exactly one transaction onchain
+- M4 submit the same intent twice -> exactly one transaction onchain
 - M7 verify a receipt in a private window with the dashboard offline — proves statelessness
 
 **End to end (the demo)**
-1. Legit rebalance → simulate passes → lands → receipt anchored
+1. Legit rebalance -> simulate passes -> lands -> receipt anchored
 2. **Kill shot:** structurally-perfect intent (every address allowlisted, every selector approved)
-   → guard simulation reverts `InvariantBroken(0, 1.12, 1.40)` → DENY. No calldata-level system
+   -> guard simulation reverts `InvariantBroken(0, 1.12, 1.40)` -> DENY. No calldata-level system
    catches this
-3. Oversized treasury move → HOLD → notification → approve live → `tempo_release_hold` → lands
-4. Simulate passes, move state before broadcast → guard reverts on-chain
+3. Oversized treasury move -> HOLD -> notification -> approve live -> `tempo_release_hold` -> lands
+4. Simulate passes, move state before broadcast -> guard reverts on-chain
 
-**CI:** typecheck → unit tests → forge fuzz → deploy + verify contracts → one job that lands a real
-Sepolia transaction → preview environment per PR.
+**CI:** typecheck -> unit tests -> forge fuzz -> deploy + verify contracts -> one job that lands a real
+Sepolia transaction -> preview environment per PR.
 
 ---
 
@@ -178,8 +178,8 @@ Sepolia transaction → preview environment per PR.
 | Risk | Mitigation | Kill criteria |
 |---|---|---|
 | `simulate:true` has no custom-error data | Per-invariant probe sims | Resolve in M2, hour one. Cap at 4 invariants if slow |
-| No external x402 users | Run a second agent yourself; DM 3 teams directly | Zero externals by Aug 12 noon → drop the claim, never fake it |
+| No external x402 users | Run a second agent yourself; DM 3 teams directly | Zero externals by Aug 12 noon -> drop the claim, never fake it |
 | Live agent loses money or breaks | Tiny size, conservative invariants, low HOLD threshold, kill switch | If it breaks, it becomes a chaos-report row. Do not hide it |
-| Mainnet anchoring gas cost | Sponsored-gas allowance; batch mode; Base for high frequency | Allowance out → anchor Base-only and say so |
+| Mainnet anchoring gas cost | Sponsored-gas allowance; batch mode; Base for high frequency | Allowance out -> anchor Base-only and say so |
 | Name reads as unserious to a judge | Everything except the name is written dead straight | If it lands badly in the Discord, `nocap` is the fallback — same joke class, prouder of the receipts angle |
-| Scope overrun | P2 cut order: Solana path → x402 buy side → marketplace listing | Never cut: guard, live agent, chaos report |
+| Scope overrun | P2 cut order: Solana path -> x402 buy side -> marketplace listing | Never cut: guard, live agent, chaos report |

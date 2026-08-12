@@ -4,7 +4,7 @@
  * Both functions run on every request; nothing here is cached or baked at build time.
  * The ledger is whatever KeeperHub's simulation endpoints say right now, and the guard
  * configuration is whatever the contract on chain says right now. When a read fails the
- * page says so instead of falling back to a constant — a status display that lies about
+ * page says so instead of falling back to a constant - a status display that lies about
  * its own freshness is worse than no display.
  */
 

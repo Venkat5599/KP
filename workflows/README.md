@@ -26,7 +26,7 @@ genuine.
 
 ## Importing (one-time, needs the org API key)
 
-1. KeeperHub app → Workflows → Import → `noyeet-verify.json`.
+1. KeeperHub app -> Workflows -> Import -> `noyeet-verify.json`.
 2. Set the workflow env `NOYEET_VERIFY_ENDPOINT` to the deployed gateway's URL
    (e.g. `https://gateway.example.com`); the workflow calls
    `POST {NOYEET_VERIFY_ENDPOINT}/v1/verify`.

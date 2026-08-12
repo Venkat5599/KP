@@ -631,7 +631,7 @@ function executeGuarded(Call[] calldata calls, Invariant[] calldata inv)
     <div class="layer"><div class="name">Queue</div><div class="pick">Postgres-backed job table</div><div class="why">One durable store, no Redis to lose. Serialized sends per wallet kill nonce races by construction.</div></div>
     <div class="layer"><div class="name">Execution</div><div class="pick">KeeperHub MCP + CLI</div><div class="why">Gas estimation, retry, nonce, Turnkey custody, sponsored gas. noyeet signs nothing itself.</div></div>
     <div class="layer"><div class="name">Dashboard</div><div class="pick">Next.js, React server components</div><div class="why">Operator surface and public verifier. The verifier ships static — it must outlive the service.</div></div>
-    <div class="layer"><div class="name">Telemetry</div><div class="pick">OpenTelemetry → Grafana</div><div class="why">One trace spans intent, policy, simulation, execution, anchor. The trace ID appears on every receipt.</div></div>
+    <div class="layer"><div class="name">Telemetry</div><div class="pick">OpenTelemetry -> Grafana</div><div class="why">One trace spans intent, policy, simulation, execution, anchor. The trace ID appears on every receipt.</div></div>
     <div class="layer"><div class="name">Tests</div><div class="pick">Vitest, Foundry, Playwright</div><div class="why">Rule-level units, contract fuzzing, and one CI job that lands a real Sepolia transaction.</div></div>
     <div class="layer"><div class="name">Delivery</div><div class="pick">Turborepo, GitHub Actions, Fly.io</div><div class="why">Typecheck, test, fuzz, deploy, verify, ship. Preview environment per pull request.</div></div>
   </div>

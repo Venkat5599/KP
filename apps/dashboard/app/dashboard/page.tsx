@@ -1,3 +1,4 @@
+import { PolicyCanvas } from "@/components/canvas/policy-canvas";
 import { Verifier } from "@/components/verifier";
 import { loadConfig } from "@/lib/env";
 import { formatHealthFactor, formatTime, shorten } from "@/lib/format";
@@ -111,6 +112,7 @@ export default async function DashboardPage(): Promise<ReactNode> {
     : [];
 
   const nav = [
+    { href: "#canvas", label: "Policy canvas" },
     { href: "#guard", label: "Guard" },
     { href: "#ledger", label: "Verdict ledger" },
     { href: "#transactions", label: "Transactions" },
@@ -147,7 +149,7 @@ export default async function DashboardPage(): Promise<ReactNode> {
               href="/"
               className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
             >
-              ← Landing
+              Back to landing
             </a>
           </nav>
 
@@ -171,6 +173,26 @@ export default async function DashboardPage(): Promise<ReactNode> {
 
       {/* Main panels */}
       <div className="min-w-0 flex-1 space-y-12 pb-16">
+        {/*
+          The canvas leads because it is the only panel that is an input rather than a
+          reading. Everything below reports what the deployed system did; this is where an
+          operator decides what it is allowed to do next.
+        */}
+        <section id="canvas" aria-labelledby="canvas-heading">
+          <h2 className="text-xl font-semibold tracking-tight" id="canvas-heading">
+            Policy canvas
+          </h2>
+          <p className="mt-1 max-w-[68ch] text-sm leading-relaxed text-muted-foreground">
+            Drag a block onto the surface, or use the buttons if you would rather not drag.
+            The policy document and the invariant tuples on the right are the real payloads:
+            the first is what the gateway parses and hashes, the second is the second
+            argument to executeGuarded.
+          </p>
+          <div className="mt-4">
+            <PolicyCanvas variant="full" />
+          </div>
+        </section>
+
         <section id="guard" aria-labelledby="guard-heading">
           <h2 className="text-xl font-semibold tracking-tight" id="guard-heading">
             Guard

@@ -8,15 +8,15 @@ README.
 
 - [OK] Guard deployed + live on Ethereum Sepolia: `0x4Bd0501fb1c0dEecaCD3efd50340Cd82Bb8E7F0f`
   (deployment tx `0x75a17782e2bf0f266854891c8a40bc0a75de38a82d2346a1605391e5c4a5e13f`).
-  Verified `admin()` → `0x2d51ffd34f678fdd8290ca6e1e10b2f66dc4751c` and
-  `isExecutor(0x5Fe224c6A6AFb471517848d5A0C6aa1905cDD582)` → true via live `eth_call`
+  Verified `admin()` -> `0x2d51ffd34f678fdd8290ca6e1e10b2f66dc4751c` and
+  `isExecutor(0x5Fe224c6A6AFb471517848d5A0C6aa1905cDD582)` -> true via live `eth_call`
   to a public Sepolia RPC.
 - [OK] No proxy, no upgrade path — by design. Immutable guard: `admin` is immutable,
   executor allowlist is the only mutable surface and cannot move funds outside
   `executeGuarded`. Risk is bounded and documented in the README threat model.
-- [OK] Invariant fuzz: `forge test` in `packages/guard` → 15/15 pass, including
+- [OK] Invariant fuzz: `forge test` in `packages/guard` -> 15/15 pass, including
   invariant properties (256 runs, depth 32, `fail_on_revert = false`).
-- [OK] Contract verified on Sepolia Etherscan: `forge verify-contract` → `Pass -
+- [OK] Contract verified on Sepolia Etherscan: `forge verify-contract` -> `Pass -
   Verified` (constructor args decoded from the deployment tx:
   `[0x5Fe224c6A6AFb471517848d5A0C6aa1905cDD582]`), 2026-08-12.
 
@@ -75,7 +75,7 @@ README.
 - [PART] Rollback path: contracts are immutable and the dashboard is a static
   deployment; rollback = redeploy previous build. No documented runbook yet.
 - [PART] HOLD notifications (Discord/Telegram envs) are declared in `.env.example`
-  but not wired to any code path — the HOLD surface is designed (policy → receipt)
+  but not wired to any code path — the HOLD surface is designed (policy -> receipt)
   but notification delivery is not implemented.
 
 ## Legal / framing
@@ -118,11 +118,11 @@ Live end-to-end (needs KEEPERHUB_API_KEY + funded executor on the guard):
 2. A real `/v1/authorize`: KeeperHub simulates the intent against the guard; verdict + receipt digest from the live API.
 3. A real broadcast: ALLOW intent lands on Sepolia; real `executionId` + tx hash (pasteable on Etherscan).
 4. A real HOLD: large-value intent escalates, hold record created, Discord/Telegram notification delivered; release/cancel live.
-5. `apps/keeper` runs continuously — at least one automated RPC-read → gateway-submit cycle (M5's "runs during judging" claim).
+5. `apps/keeper` runs continuously — at least one automated RPC-read -> gateway-submit cycle (M5's "runs during judging" claim).
 
 Live anchoring (needs org KeeperHub key + receipt store):
-6. ✅ AnchorStore deployed on Sepolia at `0x3Dc29f2C35f2840D9c7503c66dD3d0Cd468c4f6b`; admin = KeeperHub wallet (verified on chain). Deployer: fresh wallet `0x60DCAF2F…f919` (key at ~/.hermes/secrets, never in repo).
-7. First real anchor: `bun run anchor` with `DATABASE_URL` + `ANCHOR_ADDRESS` → a Merkle root **and the batch policy hash** committed onchain (`anchor(batchId, root, policyHash)`, tested).
+6. AnchorStore deployed on Sepolia at `0x3Dc29f2C35f2840D9c7503c66dD3d0Cd468c4f6b`; admin = KeeperHub wallet (verified on chain). Deployer: fresh wallet `0x60DCAF2F…f919` (key at ~/.hermes/secrets, never in repo).
+7. First real anchor: `bun run anchor` with `DATABASE_URL` + `ANCHOR_ADDRESS` -> a Merkle root **and the batch policy hash** committed onchain (`anchor(batchId, root, policyHash)`, tested).
 8. Verification against the anchored root: a receipt proves against the on-chain root via `apps/verifier`, not just locally.
 
 Score: 92/100 — launchable. No funds at risk (testnet, no owner keys in repo, guard

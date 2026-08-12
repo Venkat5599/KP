@@ -113,7 +113,7 @@ export function LiveProbe(): ReactNode {
               </p>
             ) : (
               <p className="mt-2 font-mono text-[10px] text-neutral-500">
-                executeGuarded, simulated live — HTTP {result.httpStatus}
+                executeGuarded, simulated live - HTTP {result.httpStatus}
               </p>
             )}
           </div>

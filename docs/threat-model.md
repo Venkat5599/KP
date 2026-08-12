@@ -13,7 +13,7 @@ permit, and the permit is only valid while the chain says the resulting state is
 ```
  agent (untrusted)            gateway (trusted-ish)           chain (trusted)
  ────────────────             ────────────────────           ────────────────
- intent + rationale   →      policy VM (pure)        →      simulate
+ intent + rationale   ->      policy VM (pure)        ->      simulate
                               │ ALLOW / HOLD / DENY          guard-wrapped call
                               │ (rationale never read)       at inclusion, the
                               ▼                              guard asserts again
@@ -58,11 +58,11 @@ permit, and the permit is only valid while the chain says the resulting state is
 
 ## Fail-closed behavior
 
-- Missing env at gateway boot → process exits naming the variables (no degraded mode).
-- No API key on the dashboard → probe and ledger say `live: false` with the reason;
+- Missing env at gateway boot -> process exits naming the variables (no degraded mode).
+- No API key on the dashboard -> probe and ledger say `live: false` with the reason;
   recorded values are never served dressed as live ones.
-- Probe reverts → DENY with the invariant named; a preflight rejection
+- Probe reverts -> DENY with the invariant named; a preflight rejection
   (`failureKind: "validation"`) is reported as an operational problem, never as a
   broken invariant.
-- Store write fails → the decision is still returned, with `persisted: false`, so a
+- Store write fails -> the decision is still returned, with `persisted: false`, so a
   lost receipt is never mistaken for a stored one.

@@ -10,7 +10,7 @@ Agents do not get keys. They get permits, decided by what the chain says will ha
 
 ### ▶ Live at https://dashboard-nu-two-93-six.vercel.app
 
-[Live demo ↗](https://dashboard-nu-two-93-six.vercel.app) · [Repo ↗](https://github.com/Venkat5599/KP) · [Architecture ↓](#architecture) · [Run it locally ↓](#run-it-locally)
+[Live demo](https://dashboard-nu-two-93-six.vercel.app) · [Repo](https://github.com/Venkat5599/KP) · [Architecture](#architecture) · [Run it locally](#run-it-locally)
 
 Built for the KeeperHub hackathon. MIT licensed.
 
@@ -140,7 +140,7 @@ chain
 | `packages/observability` | TypeScript | Prometheus metrics collection |
 | `apps/gateway` | Hono | Authorization pipeline composing policy, simulation, receipts; `POST /v1/authorize`, `POST /v1/execute`, `POST /v1/holds` (+ release/cancel), `POST /v1/verify`, `GET /v1/executions/:id`, `GET /healthz` |
 | `apps/dashboard` | Next.js | Landing + live ledger + contract reads + receipt verifier + `/api/probe`, `/api/metrics` |
-| `apps/keeper` | TypeScript | Continuous guarded executor: RPC position read → intent → gateway submit |
+| `apps/keeper` | TypeScript | Continuous guarded executor: RPC position read -> intent -> gateway submit |
 | `apps/verifier` | Static HTML + bundled TS | Stateless receipt digest verifier, opens from `file://` |
 | `templates/create-noyeet-agent` | TypeScript | Starter: one command from a clean machine to a guarded, landed testnet transaction |
 
@@ -157,18 +157,18 @@ chain
 
 | Feature | Status | Detail |
 | --- | --- | --- |
-| Guard on Sepolia, verified on Etherscan | ✅ | `0x4Bd0501fb1c0dEecaCD3efd50340Cd82Bb8E7F0f`; executor `0x5Fe224…DD582`; constructor args verified; fuzzed (1024 runs) |
-| ALLOW / DENY on the live API | ✅ | `/api/probe` runs both simulations per request against the live KeeperHub API |
-| On-chain enforcement | ✅ | Proven on a fork of Sepolia: safe composite mined status 1; unsafe composite reverted `INV:0:1120…:1400…` with state unchanged (`scripts/chaos-fork.sh`) |
-| Policy VM: 12 rules, three verdicts | ✅ | Purity-gated in CI |
-| HOLD path | ✅ | Gateway hold ledger + Discord/Telegram notification (env-gated); release/cancel via API. Tempo-style signing is **not** integrated — the hold is held by the gateway, not by Tempo |
-| Receipts: canonical digest + Merkle batches | ✅ | 37 tests; digest consistency with the static verifier pinned by test |
-| On-chain receipt anchoring | ⚠️ | `AnchorStore.sol` deployed on Sepolia at `0x3Dc29f2C35f2840D9c7503c66dD3d0Cd468c4f6b` (admin = KeeperHub wallet, verified on chain, [tx](https://sepolia.etherscan.io/tx/0x2fd94339127ff68e7eec025d2d5aad0793ce00f74b2c5080a716c6345c706ae4)); first anchor pending — needs the org KeeperHub key and a receipt store |
-| Policy-hash commitment on chain | ⚠️ | `anchor(batchId, root, policyHash)` binds the policy in force per batch (tested, incl. conflict on mismatch); the deployed AnchorStore is ready — first anchor commits both |
-| Keeper running continuously | ⚠️ | `apps/keeper` ready (10 tests); a live run needs the org KeeperHub key and a funded executor on the guard |
-| Marketplace workflow `noyeet/verify` | ⚠️ | Definition + import README ready; the paid listing needs the org account |
-| `failureKind` discrimination | ✅ | `"validation"` never reported as an invariant breach (tested) |
-| Oracle median-of-three feeds | ❌ | Not built. The guard probes the live target directly; a multi-feed design is roadmap |
+| Guard on Sepolia, verified on Etherscan | Yes | `0x4Bd0501fb1c0dEecaCD3efd50340Cd82Bb8E7F0f`; executor `0x5Fe224…DD582`; constructor args verified; fuzzed (1024 runs) |
+| ALLOW / DENY on the live API | Yes | `/api/probe` runs both simulations per request against the live KeeperHub API |
+| On-chain enforcement | Yes | Proven on a fork of Sepolia: safe composite mined status 1; unsafe composite reverted `INV:0:1120…:1400…` with state unchanged (`scripts/chaos-fork.sh`) |
+| Policy VM: 12 rules, three verdicts | Yes | Purity-gated in CI |
+| HOLD path | Yes | Gateway hold ledger + Discord/Telegram notification (env-gated); release/cancel via API. Tempo-style signing is **not** integrated — the hold is held by the gateway, not by Tempo |
+| Receipts: canonical digest + Merkle batches | Yes | 37 tests; digest consistency with the static verifier pinned by test |
+| On-chain receipt anchoring | Partial | `AnchorStore.sol` deployed on Sepolia at `0x3Dc29f2C35f2840D9c7503c66dD3d0Cd468c4f6b` (admin = KeeperHub wallet, verified on chain, [tx](https://sepolia.etherscan.io/tx/0x2fd94339127ff68e7eec025d2d5aad0793ce00f74b2c5080a716c6345c706ae4)); first anchor pending — needs the org KeeperHub key and a receipt store |
+| Policy-hash commitment on chain | Partial | `anchor(batchId, root, policyHash)` binds the policy in force per batch (tested, incl. conflict on mismatch); the deployed AnchorStore is ready — first anchor commits both |
+| Keeper running continuously | Partial | `apps/keeper` ready (10 tests); a live run needs the org KeeperHub key and a funded executor on the guard |
+| Marketplace workflow `noyeet/verify` | Partial | Definition + import README ready; the paid listing needs the org account |
+| `failureKind` discrimination | Yes | `"validation"` never reported as an invariant breach (tested) |
+| Oracle median-of-three feeds | No | Not built. The guard probes the live target directly; a multi-feed design is roadmap |
 
 ## Transactions
 
@@ -242,14 +242,14 @@ bash scripts/chaos-fork.sh
 | `KEEPERHUB_API_KEY` | — | KeeperHub org API key (`kh_…`). Required by gateway, keeper, anchoring script |
 | `KEEPERHUB_BASE_URL` | `https://app.keeperhub.com` | API base URL |
 | `BASE_RPC_URL` | — | Chain RPC for contract reads |
-| `DATABASE_URL` | — | Postgres (Neon-compatible) receipt store; unset ⇒ in-memory |
+| `DATABASE_URL` | — | Postgres (Neon-compatible) receipt store; unset => in-memory |
 | `NOYEET_POLICY` | — | Policy document (JSON) |
 | `NOYEET_POLICY_HASH` | — | Policy keccak256, carried in every receipt |
 | `NOYEET_GUARD_ADDRESS` | — | Deployed guard address |
 | `NOYEET_GUARD_ABI` | bundled | Override the default `executeGuarded` ABI |
-| `DISCORD_WEBHOOK_URL` | — | HOLD notifications; unset ⇒ silent (holds still work) |
+| `DISCORD_WEBHOOK_URL` | — | HOLD notifications; unset => silent (holds still work) |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | — | HOLD notifications via Telegram |
-| `METRICS_TOKEN` | — | Optional auth for `/api/metrics` (Bearer or `?token=`); unset ⇒ open |
+| `METRICS_TOKEN` | — | Optional auth for `/api/metrics` (Bearer or `?token=`); unset => open |
 | `PORT` | `3000` | Gateway listen port |
 | `KEEPER_RPC_URL` / `KEEPER_TARGET_ADDRESS` / `KEEPER_GUARD_ADDRESS` | — | Keeper position source (required by `apps/keeper`) |
 | `KEEPER_HF_FLOOR` / `KEEPER_HF_TARGET` | `1400000000000000000` / `1500000000000000000` | Keeper thresholds (wei) |

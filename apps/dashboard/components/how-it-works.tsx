@@ -2,24 +2,20 @@
 
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "motion/react";
-import { CalendarCheck, Users, Rocket } from "lucide-react";
 import type { ReactNode } from "react";
 
 const steps = [
   {
-    icon: CalendarCheck,
     title: "Permit, not key",
     description:
-      "The agent sends an intent envelope to the gateway. The policy VM — 12 pure rules, no clock, no I/O — decides ALLOW, HOLD, or DENY. The rationale field is metadata: no rule reads it.",
+      "The agent sends an intent envelope to the gateway. The policy VM - 12 pure rules, no clock, no I/O - decides ALLOW, HOLD, or DENY. The rationale field is metadata: no rule reads it.",
   },
   {
-    icon: Users,
     title: "Simulate the consequence",
     description:
       "The gateway wraps the intent in executeGuarded and runs it with simulate: true through KeeperHub. A revert means the future is bad, so the transaction is denied before it exists.",
   },
   {
-    icon: Rocket,
     title: "Broadcast the same composite",
     description:
       "The identical composite is broadcast under an idempotency key. The guard asserts post-state at inclusion, so if state moves between simulation and inclusion, the transaction reverts instead of doing damage.",
@@ -33,12 +29,17 @@ function StepItem({
   step: (typeof steps)[0];
   isLast: boolean;
 }): ReactNode {
-  const Icon = step.icon;
-
   return (
     <div className={`relative flex gap-5 ${isLast ? "" : "pb-64"}`}>
-      <div className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent" aria-hidden="true">
-        <Icon className="h-5 w-5 text-black" strokeWidth={2} />
+      {/*
+        A node on the progress line, not an icon in a coloured circle.
+        The icons that were here (a calendar for "Permit, not key", a rocket for
+        "Broadcast") described nothing about the step; they were decoration in a tile. The
+        marker now does the one job it can honestly do, which is showing how far along the
+        line this step sits.
+      */}
+      <div className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center" aria-hidden="true">
+        <span className="h-3.5 w-3.5 rounded-full bg-accent ring-4 ring-background" />
       </div>
 
       <div className="pt-1">

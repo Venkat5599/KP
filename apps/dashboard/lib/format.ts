@@ -6,7 +6,7 @@ export function shorten(value: string, head = 10, tail = 8): string {
   return `${value.slice(0, head)}…${value.slice(-tail)}`;
 }
 
-/** Wei → "1.40"-style display, 2 decimals, 18-decimal units. */
+/** Wei -> "1.40"-style display, 2 decimals, 18-decimal units. */
 export function formatHealthFactor(wei: string): string {
   const value = BigInt(wei);
   const whole = value / 1_000_000_000_000_000_000n;
@@ -16,7 +16,7 @@ export function formatHealthFactor(wei: string): string {
   return `${whole}.${fraction}`;
 }
 
-/** ISO timestamp → HH:MM:SS UTC. */
+/** ISO timestamp -> HH:MM:SS UTC. */
 export function formatTime(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? iso : date.toISOString().slice(11, 19);
