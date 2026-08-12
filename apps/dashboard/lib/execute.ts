@@ -154,7 +154,7 @@ async function executorInfo(
       config.guardAddress,
       `0xdebfda30${wallet.slice(2).toLowerCase().padStart(64, "0")}`,
     );
-    const registered = result.length >= 66 && result.slice(64).toLowerCase() === "1".padStart(64, "0");
+    const registered = result.length >= 66 && BigInt(result) === 1n;
     return { wallet, registered };
   } catch {
     return null;
@@ -290,20 +290,22 @@ export async function runExecute(amountWei: bigint): Promise<ExecutePayload> {
 
     // Clean simulation: broadcast the identical composite under an idempotency key.
     const idempotencyKey = `noyeet-dapp-${intent.id}`;
+    // The broadcast path requires canonical object-form tuples; array-form tuples are
+    // rejected with "expected object for tuple". Simulate accepts both.
     const broadcastBody = {
       chainId: intent.chainId,
       contractAddress: config.guardAddress,
       functionName: "executeGuarded",
       abi: GUARD_ABI,
       functionArgs: JSON.stringify([
-        intent.calls.map((call) => [call.target, call.value, call.data]),
-        intent.invariants.map((inv) => [
-          inv.target,
-          inv.probe,
-          inv.word,
-          ["GTE", "LTE", "EQ", "REL_DEC_MAX", "REL_INC_MAX"].indexOf(inv.op),
-          inv.threshold,
-        ]),
+        intent.calls.map((call) => ({ target: call.target, value: call.value, data: call.data })),
+        intent.invariants.map((inv) => ({
+          target: inv.target,
+          probe: inv.probe,
+          word: inv.word,
+          op: ["GTE", "LTE", "EQ", "REL_DEC_MAX", "REL_INC_MAX"].indexOf(inv.op),
+          threshold: inv.threshold,
+        })),
       ]),
     };
     const broadcastResponse = await fetch(`${baseUrl}/api/execute/contract-call`, {
