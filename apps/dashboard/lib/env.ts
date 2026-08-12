@@ -23,6 +23,7 @@ export interface DashboardConfig {
   readonly explorer: string;
   readonly healthFactorFloor: string;
   readonly gatewayUrl: string | null;
+  readonly rpcUrl: string;
   readonly seedTransactions: readonly TransactionSeed[];
 }
 
@@ -58,6 +59,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     explorer: get("NOYEET_EXPLORER") ?? "",
     healthFactorFloor: get("NOYEET_HEALTH_FACTOR_FLOOR") ?? "",
     gatewayUrl: get("NOYEET_GATEWAY_URL"),
+    rpcUrl:
+      get("NOYEET_RPC_URL") ??
+      "https://ethereum-sepolia-rpc.publicnode.com",
     seedTransactions: parseSeedTransactions(get("NOYEET_SEED_TRANSACTIONS")),
   };
 }

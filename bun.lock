@@ -31,6 +31,8 @@
       "dependencies": {
         "@noble/hashes": "^1.5.0",
         "@noyeet/observability": "workspace:*",
+        "@noyeet/policy": "workspace:*",
+        "@noyeet/receipts": "workspace:*",
         "@noyeet/store": "workspace:*",
         "lenis": "^1.3.17",
         "lucide-react": "^0.562.0",
