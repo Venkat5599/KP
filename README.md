@@ -142,6 +142,8 @@ chain
 | `apps/dashboard` | Next.js | Dapp shell: `/` execute (policy → simulate → broadcast), `/policy` n8n-style drag-and-drop policy canvas, `/overview`, `/guard`, `/verdicts`, `/transactions`, `/holds`, `/verifier`, `/operations` (observability) + `/api/execute`, `/api/probe`, `/api/health`, `/api/metrics`, `/api/transactions`, `/api/holds` |
 | `apps/keeper` | TypeScript | Continuous guarded executor: RPC position read -> intent -> gateway submit |
 | `apps/verifier` | Static HTML + bundled TS | Stateless receipt digest verifier, opens from `file://` |
+| `apps/anchor` | TypeScript | Kafka anchoring consumer: reads decision digests off the log, Merkle-roots each batch, flushes on size or age |
+| `infra/observability` | Docker Compose | Prometheus + Grafana (provisioned) + Redpanda (Kafka) + OTel collector + Tempo + Alertmanager |
 | `templates/create-noyeet-agent` | TypeScript | Starter: one command from a clean machine to a guarded, landed testnet transaction |
 
 ## Engineering decisions — the hard problems
@@ -222,6 +224,14 @@ cd apps/gateway && bun run start
 
 The gateway fails fast at boot, naming any missing env var — it refuses to run in a degraded configuration. With a key and a policy it serves `POST /v1/authorize` etc. on `http://localhost:3000`.
 
+The full observability stack is one command (Prometheus :9090, Grafana :3001 with a provisioned dashboard, Redpanda/Kafka :19092, OTel collector, Tempo, Alertmanager):
+
+```bash
+cd infra/observability && docker compose up -d
+```
+
+The gateway publishes every decision to the Kafka log (kafkajs, acks=-1, keyed by intentId) when `KAFKA_ENABLED` is set; `apps/anchor` consumes that log, Merkle-roots the digests in batches, and the OTel collector ships traces to Tempo.
+
 Land a guarded transaction with the starter (needs a funded executor on your guard):
 
 ```bash
@@ -289,6 +299,7 @@ apps/
   gateway/        Hono authorization pipeline (/v1/authorize, /v1/execute, /v1/holds, /v1/verify)
   keeper/         Continuous guarded executor loop
   verifier/       Static, stateless receipt verifier
+  anchor/         Kafka anchoring consumer (decision digests -> Merkle roots)
 packages/
   guard/          NoYeetGuard.sol, AnchorStore.sol, Foundry suite (forge-std vendored)
   policy/         Pure decision engine (12 rules, purity-gated)
@@ -300,6 +311,8 @@ templates/
   create-noyeet-agent/   One-command guarded-broadcast starter
 workflows/
   noyeet-verify.json     KeeperHub paid verify workflow definition
+infra/
+  observability/         docker compose up -d: Prometheus :9090, Grafana :3001, Redpanda :19092, OTel collector, Tempo, Alertmanager
 scripts/
   anchoring.ts           Hourly batch anchor (idempotent per batch)
   chaos-fork.sh          Reproduces the on-chain chaos proofs on a Sepolia fork

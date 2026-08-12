@@ -8,7 +8,7 @@
  * its own freshness is worse than no display.
  */
 
-import type { DashboardConfig } from "./env";
+import { loadConfig, type DashboardConfig } from "./env";
 
 export interface LedgerDecision {
   readonly id: string;
@@ -102,8 +102,7 @@ export interface ChainFact {
  * read is live and unauthenticated, so it needs no secret.
  */
 async function rpcCall(guardAddress: string, data: string): Promise<string> {
-  const rpc =
-    process.env["BASE_SEPOLIA_RPC_URL"] ?? "https://ethereum-sepolia-rpc.publicnode.com";
+  const rpc = loadConfig().rpcUrl;
   const response = await fetch(rpc, {
     method: "POST",
     headers: { "content-type": "application/json" },
