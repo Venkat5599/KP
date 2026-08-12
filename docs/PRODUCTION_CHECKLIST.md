@@ -16,9 +16,9 @@ README.
   `executeGuarded`. Risk is bounded and documented in the README threat model.
 - [OK] Invariant fuzz: `forge test` in `packages/guard` → 15/15 pass, including
   invariant properties (256 runs, depth 32, `fail_on_revert = false`).
-- [PART] Contract verification on Sepolia Etherscan not confirmed in this audit (no
-  Etherscan key present). `foundry.toml` has the Base + Base Sepolia verification
-  blocks; re-verify before any mainnet deployment.
+- [OK] Contract verified on Sepolia Etherscan: `forge verify-contract` → `Pass -
+  Verified` (constructor args decoded from the deployment tx:
+  `[0x5Fe224c6A6AFb471517848d5A0C6aa1905cDD582]`), 2026-08-12.
 
 ## Keys / deploy
 
@@ -34,9 +34,10 @@ README.
 
 ## CI / testing
 
-- [PART] No CI workflow exists (`.github/workflows` absent). A `forge fmt --check &&
-  forge build && forge test` + `bun test packages apps/gateway` + per-package
-  typecheck pipeline is the first thing to add before public launch.
+- [OK] CI pipeline added (`.github/workflows/ci.yml`): `typescript` job (bun install,
+  root typecheck, `bun test packages apps/gateway`, purity gate) and `contracts` job
+  (`forge fmt --check`, `forge build`, `forge test`). Both jobs green on the fork run
+  for this audit's commits, 2026-08-12.
 - [OK] Unit/fuzz suites green from clean clone:
   - guard 15 (forge fuzz), policy 20, receipts 31, keeperhub 21, observability 14,
     gateway 9 = 110 tests, zero failing.
@@ -67,9 +68,10 @@ README.
 
 - [OK] Observability stack committed: Prometheus config, alert rules, Grafana
   dashboard + provisioning in `infra/observability` (docker-compose).
-- [PART] No health check that proves KeeperHub reachability from the gateway — the
-  dashboard's `/api/probe` covers it for the web surface. Add `GET /healthz`
-  upstream probe if the gateway runs as a long-lived service.
+- [OK] Gateway `GET /healthz` exists and returns policy/guard/chainIds — verified
+  live (200) during this audit's boot test. It does not yet probe KeeperHub
+  reachability itself; the dashboard's `/api/probe` covers the upstream check for the
+  web surface.
 - [PART] Rollback path: contracts are immutable and the dashboard is a static
   deployment; rollback = redeploy previous build. No documented runbook yet.
 - [PART] HOLD notifications (Discord/Telegram envs) are declared in `.env.example`
@@ -82,18 +84,15 @@ README.
   agent to route through it") and explicit non-goals (not a wallet, not a strategy,
   not an LLM in the decision path).
 
-## Top 5 to do first
+## Remaining before public launch
 
-1. Add CI: `forge fmt --check` + `forge build` + `forge test`, `bun test packages
-   apps/gateway`, per-package typecheck, purity gate.
-2. Wire HOLD notification delivery (Discord/Telegram) or mark HOLD as
-   receipt-only in the README.
-3. Add an auth token (or rate limit) on `/api/metrics`.
-4. Verify the guard on Sepolia Etherscan once a key is available; document the
-   re-verify step before any mainnet move.
-5. Write the rollback runbook (redeploy previous build; contract is immutable by
+1. Wire HOLD notification delivery (Discord/Telegram envs are declared but reach no
+   code path), or mark HOLD as receipt-only in the README.
+2. Add an auth token (or rate limit) on `/api/metrics` — it is an unauthenticated
+   Prometheus endpoint; each scrape costs two KeeperHub simulations.
+3. Write the rollback runbook (redeploy previous build; contract is immutable by
    design).
 
-Score: 74/100 — launchable with caveats. No funds at risk (testnet, no owner keys in
-repo, guard immutable); the gaps are process (CI, runbook, notifications), not
-correctness.
+Score: 78/100 — launchable with caveats. No funds at risk (testnet, no owner keys in
+repo, guard immutable, contract verified); the gaps are process (notifications,
+metrics auth, runbook), not correctness.
