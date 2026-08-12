@@ -1,10 +1,5 @@
 import { collectMetrics } from "../../../lib/observability";
-import {
-  CHAIN_ID,
-  GUARD_ADDRESS,
-  HEALTH_FACTOR_FLOOR,
-  TARGET_ADDRESS,
-} from "../../../lib/decisions";
+import { loadConfig } from "../../../lib/env";
 
 /**
  * Prometheus scrape endpoint.
@@ -65,10 +60,10 @@ export async function GET(request: Request): Promise<Response> {
   const { body, contentType } = await collectMetrics({
     apiKey,
     baseUrl,
-    chainId: CHAIN_ID,
-    guard: GUARD_ADDRESS,
-    target: TARGET_ADDRESS,
-    floorWei: HEALTH_FACTOR_FLOOR,
+    chainId: loadConfig().chainId,
+    guard: loadConfig().guardAddress,
+    target: loadConfig().targetAddress,
+    floorWei: loadConfig().healthFactorFloor,
   });
 
   return new Response(body, {

@@ -12,7 +12,8 @@
   "dependencies": {
     "@noyeet/keeperhub": "workspace:*",
     "@noyeet/receipts": "workspace:*",
-    "@noyeet/store": "workspace:*"
+    "@noyeet/store": "workspace:*",
+    "next": "^16.3.0"
   },
   "scripts": {
     "test": "bun test packages apps templates",
