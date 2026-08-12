@@ -1,608 +1,383 @@
 "use client";
 
-import { useCallback, useId, useMemo, useRef, useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import "@xyflow/react/dist/style.css";
+
+import { useCallback, useMemo, useState, type DragEvent, type ReactNode } from "react";
 import {
-  BLOCKS,
-  initialValues,
-  specFor,
-  type BlockKind,
-  type BlockSpec,
-} from "@/lib/canvas/blocks";
+  ReactFlow,
+  Background,
+  BackgroundVariant,
+  Controls,
+  MiniMap,
+  addEdge,
+  useEdgesState,
+  useNodesState,
+  type Connection,
+  type Edge,
+  type Node,
+  type NodeProps,
+  type NodeTypes,
+  type OnConnect,
+} from "@xyflow/react";
+import { Copy, Trash2 } from "lucide-react";
+import { BLOCKS, specFor } from "@/lib/canvas/blocks";
 import { compile, type PlacedBlock } from "@/lib/canvas/compile";
 
 /**
- * The policy canvas.
- *
- * Place rules and invariants, and the two artifacts they compile to appear beside them:
- * a policy document for the gateway and the invariant tuples that go into executeGuarded.
- * Everything here is live. Editing a field recompiles immediately, and what is rendered is
- * the real payload, not a mock of one.
- *
- * Two things are deliberate.
- *
- * Dragging is not the only way to place a block. Every palette entry is a real button, so
- * the canvas is usable from the keyboard and by anyone who cannot drag. A drag-only builder
- * is an unusable builder for a meaningful share of people, and it costs one onClick to
- * avoid.
- *
- * Policy blocks and invariant blocks are visually distinct because they are enforced by
- * different machinery at different moments. A policy rule refuses an intent before it
- * exists; an invariant reverts a transaction after the calls have already run. An operator
- * who cannot tell them apart will eventually believe a bound is enforced on chain when it
- * only ever lived in a config file.
+ * The policy canvas, n8n-style: a palette of real policy blocks, drag them onto the
+ * canvas, wire them, configure each node. The artifact panel compiles the placement
+ * with the same pure compiler the gateway's policy VM consumes — nothing here is a
+ * picture of a policy, it is the policy document plus the invariant tuples.
  */
 
-const GRID = 8;
-const snap = (n: number): number => Math.round(n / GRID) * GRID;
-
-export interface PolicyCanvasProps {
-  /** "compact" is the landing-page surface; "full" is the dashboard workspace. */
-  readonly variant?: "compact" | "full";
-  readonly initialBlocks?: readonly PlacedBlock[];
+interface BlockNodeData extends Record<string, unknown> {
+  readonly block: PlacedBlock;
 }
 
-/**
- * A block's rendered height, derived rather than assumed.
- *
- * Height is not uniform: it grows with the field count, so a fixed row pitch makes a
- * four-field block collide with whatever is seeded beneath it. 74px covers the header and
- * padding, and each field costs 52px, being its label, its input, and the row gap.
- */
-function blockHeight(kind: BlockKind): number {
-  return 74 + specFor(kind).fields.length * 52;
-}
+type BlockNode = Node<BlockNodeData, "block">;
 
-/**
- * The starting composition: one target, one function, one floor. A real, minimal policy,
- * and the smallest one the compiler will call deployable.
- *
- * Two columns, always. The invariant is the block that makes this system what it is, so it
- * has to be on screen without scrolling; stacking all three in one column pushes it below
- * the fold on the landing page, where the surface is shorter.
- */
-export function defaultBlocks(): PlacedBlock[] {
-  const seeds: BlockKind[] = ["target", "selector", "invariantFloor"];
-  const columnGap = 288;
-  const rowGap = 16;
+const LAYER_STYLES = {
+  policy: { border: "border-neutral-400/60", badge: "bg-neutral-200 text-neutral-700" },
+  invariant: { border: "border-emerald-500/50", badge: "bg-emerald-500/10 text-emerald-600" },
+} as const;
 
-  let y = 24;
-  return seeds.map((kind, index) => {
-    // The invariant opens the second column, so the policy rules and the on-chain
-    // assertion read side by side rather than as one long list.
-    const secondColumn = index === 2;
-    const block: PlacedBlock = {
-      id: `seed-${kind}`,
-      kind,
-      x: secondColumn ? 24 + columnGap : 24,
-      y: secondColumn ? 24 : y,
-      values: initialValues(kind),
-    };
-    if (!secondColumn) y += blockHeight(kind) + rowGap;
-    return block;
-  });
-}
-
-export function PolicyCanvas({
-  variant = "full",
-  initialBlocks,
-}: PolicyCanvasProps) {
-  const [blocks, setBlocks] = useState<PlacedBlock[]>(() => [
-    ...(initialBlocks ?? defaultBlocks()),
-  ]);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [view, setView] = useState<"policy" | "invariants">("policy");
-  const surface = useRef<HTMLDivElement>(null);
-  const seq = useRef(0);
-  const reduce = useReducedMotion();
-  const domId = useId();
-
-  const compiled = useMemo(() => compile(blocks), [blocks]);
-  const used = useMemo(() => new Set(blocks.map((b) => b.kind)), [blocks]);
-
-  const add = useCallback((kind: BlockKind, at?: { x: number; y: number }) => {
-    seq.current += 1;
-    const id = `b${seq.current}`;
-    setBlocks((prev) => {
-      // A click-placed block lands below whatever is already in the left column, measured
-      // from real heights. Anything else stacks blocks on top of each other, which is
-      // exactly the collision this canvas had on first paint.
-      const column = prev.filter((b) => b.x < 24 + 288);
-      const bottom = column.reduce(
-        (low, b) => Math.max(low, b.y + blockHeight(b.kind)),
-        8
-      );
-
-      return [
-        ...prev,
-        {
-          id,
-          kind,
-          x: snap(at?.x ?? 24),
-          y: snap(at?.y ?? bottom + 16),
-          values: initialValues(kind),
-        },
-      ];
-    });
-    setSelected(id);
-  }, []);
-
-  const remove = useCallback((id: string) => {
-    setBlocks((prev) => prev.filter((b) => b.id !== id));
-    setSelected((s) => (s === id ? null : s));
-  }, []);
-
-  const edit = useCallback((id: string, key: string, next: string) => {
-    setBlocks((prev) =>
-      prev.map((b) =>
-        b.id === id ? { ...b, values: { ...b.values, [key]: next } } : b
-      )
-    );
-  }, []);
-
-  const move = useCallback((id: string, dx: number, dy: number) => {
-    setBlocks((prev) =>
-      prev.map((b) =>
-        b.id === id
-          ? {
-              ...b,
-              x: Math.max(0, snap(b.x + dx)),
-              y: Math.max(0, snap(b.y + dy)),
-            }
-          : b
-      )
-    );
-  }, []);
-
-  const onDrop = useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      // getData returns "" when the drag carried no payload, so the membership test is
-      // the real guard here rather than a separate empty-string check.
-      const kind = event.dataTransfer.getData("text/noyeet-block");
-      if (!BLOCKS.some((b) => b.kind === kind)) return;
-      const placed = kind as BlockKind;
-      const rect = surface.current?.getBoundingClientRect();
-      if (rect === undefined) return add(placed);
-      add(placed, {
-        x: event.clientX - rect.left - 130,
-        y: event.clientY - rect.top - 30,
-      });
-    },
-    [add]
-  );
-
-  const errors = compiled.issues.filter((i) => i.severity === "error");
-  const warnings = compiled.issues.filter((i) => i.severity === "warning");
-  const compact = variant === "compact";
-
+function BlockNodeComponent({ data, selected }: NodeProps<BlockNode>): ReactNode {
+  const spec = specFor(data.block.kind);
+  const layer = LAYER_STYLES[spec.layer];
   return (
     <div
-      className={
-        compact
-          ? "border-border bg-border grid grid-cols-1 gap-px overflow-hidden rounded-2xl border lg:grid-cols-[minmax(0,1fr)_320px]"
-          : "border-border bg-border grid grid-cols-1 gap-px overflow-hidden rounded-2xl border lg:grid-cols-[220px_minmax(0,1fr)_360px]"
-      }
+      className={`w-64 rounded-xl border-2 bg-background shadow-sm ${
+        selected ? "border-accent" : layer.border
+      }`}
     >
-      {!compact && <Palette used={used} onAdd={add} />}
-
-      <div className="bg-frame relative">
-        <div className="border-border flex items-center justify-between gap-3 border-b px-4 py-3">
-          <p className="text-foreground text-sm font-medium">
-            {blocks.length} {blocks.length === 1 ? "block" : "blocks"} placed
-          </p>
-          <Verdict
-            deployable={compiled.deployable}
-            errors={errors.length}
-            warnings={warnings.length}
-          />
-        </div>
-
-        <div
-          ref={surface}
-          onDrop={onDrop}
-          onDragOver={(e) => e.preventDefault()}
-          className={`canvas-surface relative overflow-auto ${compact ? "h-[340px]" : "h-[520px]"}`}
-        >
-          {blocks.length === 0 ? (
-            <EmptyCanvas compact={compact} onAdd={add} />
-          ) : (
-            blocks.map((block) => (
-              <CanvasBlock
-                key={block.id}
-                block={block}
-                spec={specFor(block.kind)}
-                selected={selected === block.id}
-                invalid={errors.some((e) => e.blockId === block.id)}
-                warned={warnings.some((w) => w.blockId === block.id)}
-                reduce={reduce === true}
-                domId={domId}
-                onSelect={() => setSelected(block.id)}
-                onMove={(dx, dy) => move(block.id, dx, dy)}
-                onEdit={(key, next) => edit(block.id, key, next)}
-                onRemove={() => remove(block.id)}
-              />
-            ))
-          )}
-        </div>
-
-        {compact && <CompactPalette used={used} onAdd={add} />}
+      {/* n8n-style header */}
+      <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2">
+        <p className="truncate font-mono text-xs font-semibold">{spec.title}</p>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] ${layer.badge}`}>
+          {spec.layer}
+        </span>
       </div>
-
-      <Output
-        view={view}
-        onView={setView}
-        compiled={compiled}
-        issues={compiled.issues}
-        compact={compact}
+      <div className="space-y-1 px-3 py-2">
+        {spec.fields.map((field) => (
+          <p key={field.key} className="truncate font-mono text-[11px] text-muted-foreground">
+            <span className="text-foreground/70">{field.label}:</span>{" "}
+            {(data.block.values[field.key] ?? "").trim() || "—"}
+          </p>
+        ))}
+      </div>
+      <div
+        className="h-1 w-full rounded-b-xl"
+        style={{ backgroundColor: spec.layer === "invariant" ? "rgb(16 185 129)" : "rgb(163 163 163)" }}
+        aria-hidden="true"
       />
     </div>
   );
 }
 
-/**
- * The verdict strip. It reuses the system's own three-state vocabulary rather than a
- * generic valid/invalid, because "this policy would refuse everything" is a real and
- * common mistake that a boolean cannot express.
- */
-function Verdict({
-  deployable,
-  errors,
-  warnings,
-}: {
-  deployable: boolean;
-  errors: number;
-  warnings: number;
-}) {
-  const label = !deployable
-    ? `${errors} ${errors === 1 ? "problem" : "problems"}`
-    : warnings > 0
-      ? `${warnings} to review`
-      : "Ready to deploy";
+const nodeTypes: NodeTypes = { block: BlockNodeComponent };
 
-  const tone = !deployable
-    ? "border-[color-mix(in_oklab,var(--deny)_45%,transparent)] text-[var(--deny)]"
-    : warnings > 0
-      ? "border-[color-mix(in_oklab,var(--hold)_45%,transparent)] text-[var(--hold)]"
-      : "border-[color-mix(in_oklab,var(--allow)_45%,transparent)] text-[var(--allow)]";
-
-  return (
-    <p className={`rounded-full border px-3 py-1 font-mono text-xs ${tone}`}>
-      {label}
-    </p>
-  );
+export interface PolicyCanvasProps {
+  readonly initialBlocks: readonly PlacedBlock[];
+  readonly deployedPolicyJson: string | null;
+  readonly initialName: string;
+  readonly carryOver?: Record<string, unknown>;
 }
 
-/**
- * A placed block.
- *
- * Motion owns the drag transform so the position is never React state during the gesture;
- * the committed x and y are written once on drag end. The silhouette is a notch cut into
- * the left edge, which reads as a socket and marks which layer the block belongs to. That
- * shape is the one piece of bespoke geometry in the design, and it does real work: policy
- * blocks and invariant blocks are told apart by form, not only by colour, so the
- * distinction survives for anyone who cannot rely on hue.
- */
-function CanvasBlock({
-  block,
-  spec,
-  selected,
-  invalid,
-  warned,
-  reduce,
-  domId,
-  onSelect,
-  onMove,
-  onEdit,
-  onRemove,
-}: {
-  block: PlacedBlock;
-  spec: BlockSpec;
-  selected: boolean;
-  invalid: boolean;
-  warned: boolean;
-  reduce: boolean;
-  domId: string;
-  onSelect: () => void;
-  onMove: (dx: number, dy: number) => void;
-  onEdit: (key: string, next: string) => void;
-  onRemove: () => void;
-}) {
-  const isInvariant = spec.layer === "invariant";
+export function PolicyCanvas({
+  initialBlocks,
+  deployedPolicyJson,
+  initialName,
+  carryOver,
+}: PolicyCanvasProps): ReactNode {
+  const [name, setName] = useState(initialName);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [copied, setCopied] = useState<"policy" | "invariants" | null>(null);
 
-  const edge = invalid
-    ? "var(--deny)"
-    : warned
-      ? "var(--hold)"
-      : isInvariant
-        ? "var(--accent)"
-        : "var(--rule)";
+  const initialNodes = useMemo<BlockNode[]>(
+    () =>
+      initialBlocks.map((block) => ({
+        id: block.id,
+        type: "block" as const,
+        position: { x: block.x, y: block.y },
+        data: { block },
+      })),
+    [initialBlocks],
+  );
+
+  const [nodes, setNodes, onNodesChange] = useNodesState<BlockNode>(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+
+  const blocks = useMemo<PlacedBlock[]>(
+    () => nodes.map((node) => node.data.block),
+    [nodes],
+  );
+
+  const compiled = useMemo(
+    () => compile(blocks, { ...(carryOver !== undefined ? { carryOver } : {}), name }),
+    [blocks, carryOver, name],
+  );
+
+  const deployedNormalized = useMemo(() => {
+    if (deployedPolicyJson === null) return null;
+    try {
+      return JSON.stringify(JSON.parse(deployedPolicyJson) as unknown);
+    } catch {
+      return null;
+    }
+  }, [deployedPolicyJson]);
+  const compiledNormalized = JSON.stringify(compiled.policy);
+  const diverged = deployedNormalized !== null && compiledNormalized !== deployedNormalized;
+
+  const onConnect: OnConnect = useCallback(
+    (connection: Connection) => {
+      setEdges((eds) => addEdge({ ...connection, animated: true }, eds));
+    },
+    [setEdges],
+  );
+
+  const onDrop = useCallback(
+    (event: DragEvent) => {
+      event.preventDefault();
+      const kind = event.dataTransfer.getData("application/noyeet-block");
+      if (kind === "") return;
+      const spec = specFor(kind as PlacedBlock["kind"]);
+      const position = (event.target as HTMLElement).closest(".react-flow")?.getBoundingClientRect();
+      const x = position ? event.clientX - position.left : 120;
+      const y = position ? event.clientY - position.top : 60;
+      const values: Record<string, string> = {};
+      for (const field of spec.fields) values[field.key] = field.initial;
+      const id = `${kind}-${Date.now().toString(36)}`;
+      setNodes((nds) => [
+        ...nds,
+        {
+          id,
+          type: "block",
+          position: { x: Math.max(0, x - 128), y: Math.max(0, y - 20) },
+          data: { block: { id, kind: kind as PlacedBlock["kind"], x, y, values } },
+        },
+      ]);
+      setSelectedId(id);
+    },
+    [setNodes],
+  );
+
+  const updateValue = (nodeId: string, key: string, value: string) => {
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === nodeId
+          ? { ...node, data: { block: { ...node.data.block, values: { ...node.data.block.values, [key]: value } } } }
+          : node,
+      ),
+    );
+  };
+
+  const removeNode = (nodeId: string) => {
+    setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+    setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+    setSelectedId(null);
+  };
+
+  const selectedNode = nodes.find((node) => node.id === selectedId) ?? null;
+  const selectedSpec = selectedNode ? specFor(selectedNode.data.block.kind) : null;
+
+  const copy = async (text: string, which: "policy" | "invariants") => {
+    await navigator.clipboard.writeText(text);
+    setCopied(which);
+    setTimeout(() => setCopied(null), 1500);
+  };
 
   return (
-    <motion.div
-      drag
-      dragMomentum={false}
-      dragElastic={0}
-      onDragStart={onSelect}
-      onDragEnd={(_, info) => onMove(info.offset.x, info.offset.y)}
-      onPointerDown={onSelect}
-      initial={false}
-      animate={{ x: block.x, y: block.y }}
-      transition={
-        reduce
-          ? { duration: 0 }
-          : { type: "spring", stiffness: 520, damping: 42 }
-      }
-      style={{ borderColor: edge }}
-      className={`canvas-block bg-frame absolute top-0 left-0 w-[264px] cursor-grab touch-none rounded-xl border active:cursor-grabbing ${
-        selected ? "canvas-block-selected" : ""
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2 px-4 pt-3 pb-2">
-        <div className="min-w-0">
-          <p className="text-foreground truncate text-sm font-medium">
-            {spec.title}
-          </p>
-          <p className="text-muted-foreground mt-0.5 font-mono text-[10px] tracking-wider uppercase">
-            {isInvariant ? "asserted on chain" : "checked before broadcast"}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label={`Remove ${spec.title}`}
-          className="text-muted-foreground hover:bg-muted hover:text-foreground shrink-0 rounded-md px-1.5 py-0.5 font-mono text-xs transition-colors"
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          aria-label="Policy name"
+          className="w-56 rounded-lg border border-border/70 bg-background px-3 py-1.5 font-mono text-xs outline-none focus:ring-2 focus:ring-accent"
+        />
+        <span
+          className={`rounded-full px-3 py-1 font-mono text-[11px] ${
+            diverged
+              ? "bg-amber-500/10 text-amber-600"
+              : "bg-emerald-500/10 text-emerald-600"
+          }`}
         >
-          x
-        </button>
+          {deployedNormalized === null
+            ? "no deployed policy on this deployment"
+            : diverged
+              ? "diverged from the deployed policy"
+              : "matches the deployed policy"}
+        </span>
+        <span
+          className={`ml-auto rounded-full px-3 py-1 font-mono text-[11px] ${
+            compiled.deployable ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-500"
+          }`}
+        >
+          {compiled.deployable ? "deployable" : `${compiled.issues.length} issue(s)`}
+        </span>
       </div>
 
-      <div className="grid gap-2 px-4 pb-4">
-        {spec.fields.map((field) => {
-          const inputId = `${domId}-${block.id}-${field.key}`;
-          return (
-            <div key={field.key} className="grid gap-1">
-              <label
-                htmlFor={inputId}
-                className="text-muted-foreground font-mono text-[10px] tracking-wider uppercase"
-              >
-                {field.label}
-              </label>
-              <input
-                id={inputId}
-                value={block.values[field.key] ?? ""}
-                onChange={(e) => onEdit(field.key, e.target.value)}
-                onPointerDown={(e) => e.stopPropagation()}
-                spellCheck={false}
-                autoComplete="off"
-                className="border-border bg-background text-foreground focus-visible:border-ring focus-visible:ring-ring/40 w-full rounded-md border px-2 py-1.5 font-mono text-xs outline-none focus-visible:ring-2"
-              />
-            </div>
-          );
-        })}
-      </div>
-    </motion.div>
-  );
-}
-
-/** The palette. Each entry is both a drag source and a real button. */
-function Palette({
-  used,
-  onAdd,
-}: {
-  used: Set<BlockKind>;
-  onAdd: (k: BlockKind) => void;
-}) {
-  return (
-    <div className="bg-frame">
-      <p className="border-border text-foreground border-b px-4 py-3 text-sm font-medium">
-        Blocks
-      </p>
-      <div className="grid gap-1 p-2">
-        {BLOCKS.map((spec) => {
-          const spent = spec.singleton && used.has(spec.kind);
-          return (
-            <button
-              key={spec.kind}
-              type="button"
-              draggable={!spent}
-              disabled={spent}
-              onDragStart={(e) =>
-                e.dataTransfer.setData("text/noyeet-block", spec.kind)
-              }
-              onClick={() => onAdd(spec.kind)}
-              title={spec.summary}
-              className="palette-item group hover:bg-muted grid w-full gap-0.5 rounded-lg px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-            >
-              <span className="text-foreground flex items-center gap-2 text-[13px] font-medium">
-                <span
-                  aria-hidden
-                  className="h-3 w-[3px] rounded-full"
-                  style={{
-                    background:
-                      spec.layer === "invariant"
-                        ? "var(--accent)"
-                        : "var(--rule)",
-                  }}
-                />
-                {spec.title}
-              </span>
-              <span className="text-muted-foreground pl-[11px] text-xs leading-snug">
-                {spent ? "Already placed" : spec.summary}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/** The landing-page palette: a horizontal strip under the canvas, same behaviour. */
-function CompactPalette({
-  used,
-  onAdd,
-}: {
-  used: Set<BlockKind>;
-  onAdd: (k: BlockKind) => void;
-}) {
-  return (
-    <div className="border-border flex flex-wrap gap-1.5 border-t px-4 py-3">
-      {BLOCKS.map((spec) => {
-        const spent = spec.singleton && used.has(spec.kind);
-        return (
-          <button
-            key={spec.kind}
-            type="button"
-            draggable={!spent}
-            disabled={spent}
-            onDragStart={(e) =>
-              e.dataTransfer.setData("text/noyeet-block", spec.kind)
-            }
-            onClick={() => onAdd(spec.kind)}
-            title={spec.summary}
-            className="border-border text-foreground hover:border-ring hover:bg-muted inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <span
-              aria-hidden
-              className="h-2.5 w-[3px] rounded-full"
-              style={{
-                background:
-                  spec.layer === "invariant" ? "var(--accent)" : "var(--rule)",
-              }}
-            />
-            {spec.title}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function EmptyCanvas({
-  compact,
-  onAdd,
-}: {
-  compact: boolean;
-  onAdd: (k: BlockKind) => void;
-}) {
-  return (
-    <div className="grid h-full place-items-center px-6 text-center">
-      <div className="max-w-sm">
-        <p className="text-foreground text-sm font-medium">
-          Nothing placed yet
-        </p>
-        <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-          Add an allowlisted target so the agent can call something, then an
-          invariant so the guard can refuse a bad outcome. A policy without both
-          is not enforceable.
-        </p>
-        {compact && (
-          <button
-            type="button"
-            onClick={() => onAdd("target")}
-            className="border-border text-foreground hover:border-ring hover:bg-muted mt-4 rounded-lg border px-3 py-1.5 text-sm transition-colors"
-          >
-            Add a target
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/**
- * The compiled output.
- *
- * Two tabs because there are genuinely two artifacts, sent to two different places. The
- * policy JSON is what the gateway parses and hashes; the invariant tuples are the second
- * argument to executeGuarded. Showing them together in one blob would hide the fact that
- * one is enforced off chain before broadcast and the other on chain at inclusion.
- */
-function Output({
-  view,
-  onView,
-  compiled,
-  issues,
-  compact,
-}: {
-  view: "policy" | "invariants";
-  onView: (v: "policy" | "invariants") => void;
-  compiled: ReturnType<typeof compile>;
-  issues: ReturnType<typeof compile>["issues"];
-  compact: boolean;
-}) {
-  const text =
-    view === "policy"
-      ? JSON.stringify(compiled.policy, null, 2)
-      : JSON.stringify(
-          compiled.invariants.map((i) => [
-            i.target,
-            i.probe,
-            i.word,
-            i.op,
-            i.threshold,
-          ]),
-          null,
-          2
-        );
-
-  return (
-    <div className="bg-frame flex min-w-0 flex-col">
-      <div className="border-border flex items-center gap-1 border-b p-2">
-        {(["policy", "invariants"] as const).map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => onView(tab)}
-            aria-pressed={view === tab}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              view === tab
-                ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {tab === "policy"
-              ? "Policy document"
-              : `Invariants (${compiled.invariants.length})`}
-          </button>
-        ))}
-      </div>
-
-      <p className="border-border text-muted-foreground border-b px-4 py-2 text-xs leading-relaxed">
-        {view === "policy"
-          ? "Parsed and hashed by the gateway. The hash is committed on chain before the run."
-          : "Passed to executeGuarded and asserted after the calls, so a broken bound reverts."}
-      </p>
-
-      <pre
-        className={`text-foreground min-w-0 flex-1 overflow-auto px-4 py-3 font-mono text-[11px] leading-relaxed ${
-          compact ? "max-h-[240px]" : "max-h-[380px]"
-        }`}
-      >
-        <code>{text}</code>
-      </pre>
-
-      {issues.length > 0 && (
-        <ul className="border-border grid gap-1.5 border-t px-4 py-3">
-          {issues.slice(0, 4).map((issue, index) => (
-            <li
-              key={`${issue.blockId ?? "policy"}-${index}`}
-              className="flex gap-2 text-xs leading-snug"
-            >
-              <span
-                aria-hidden
-                className="mt-1 h-2.5 w-[3px] shrink-0 rounded-full"
-                style={{
-                  background:
-                    issue.severity === "error" ? "var(--deny)" : "var(--hold)",
+      <div className="grid gap-4 lg:grid-cols-[220px_1fr_280px]">
+        {/* Palette */}
+        <aside className="rounded-2xl border border-border/70 bg-background/60 p-3">
+          <p className="mb-2 px-1 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+            Blocks
+          </p>
+          <div className="space-y-2">
+            {BLOCKS.map((spec) => (
+              <div
+                key={spec.kind}
+                draggable
+                onDragStart={(event) => {
+                  event.dataTransfer.setData("application/noyeet-block", spec.kind);
+                  event.dataTransfer.effectAllowed = "move";
                 }}
-              />
-              <span className="text-muted-foreground">{issue.message}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+                className="cursor-grab rounded-xl border border-border/70 bg-background px-3 py-2 transition-colors hover:border-accent active:cursor-grabbing"
+              >
+                <p className="font-mono text-xs font-medium">{spec.title}</p>
+                <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">{spec.summary}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 px-1 font-mono text-[10px] text-muted-foreground">
+            Drag onto the canvas. {BLOCKS.filter((b) => b.singleton).length} are singletons.
+          </p>
+        </aside>
+
+        {/* Canvas */}
+        <div
+          className="react-flow h-[560px] overflow-hidden rounded-2xl border border-border/70"
+          onDrop={onDrop}
+          onDragOver={(event) => event.preventDefault()}
+        >
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            nodeTypes={nodeTypes}
+            onNodeClick={(_, node) => setSelectedId(node.id)}
+            onPaneClick={() => setSelectedId(null)}
+            fitView
+            deleteKeyCode={["Backspace", "Delete"]}
+            onNodesDelete={(deleted) => {
+              setSelectedId(null);
+              void deleted;
+            }}
+            proOptions={{ hideAttribution: false }}
+          >
+            <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
+            <Controls />
+            <MiniMap pannable zoomable />
+          </ReactFlow>
+        </div>
+
+        {/* Inspector */}
+        <aside className="rounded-2xl border border-border/70 bg-background/60 p-4">
+          {selectedNode !== null && selectedSpec !== null ? (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-mono text-xs font-semibold">{selectedSpec.title}</p>
+                <button
+                  type="button"
+                  onClick={() => removeNode(selectedNode.id)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 px-2 py-1 font-mono text-[10px] text-red-500 transition-colors hover:bg-red-500/10"
+                >
+                  <Trash2 className="size-3" aria-hidden="true" />
+                  Remove
+                </button>
+              </div>
+              <p className="mt-1 font-mono text-[10px] text-muted-foreground">{selectedSpec.summary}</p>
+              <div className="mt-4 space-y-3">
+                {selectedSpec.fields.map((field) => (
+                  <div key={field.key}>
+                    <label htmlFor={`${selectedNode.id}-${field.key}`} className="font-mono text-[11px] text-muted-foreground">
+                      {field.label}
+                    </label>
+                    <input
+                      id={`${selectedNode.id}-${field.key}`}
+                      value={selectedNode.data.block.values[field.key] ?? ""}
+                      onChange={(event) => updateValue(selectedNode.id, field.key, event.target.value)}
+                      spellCheck={false}
+                      className="mt-1 w-full rounded-lg border border-border/70 bg-background px-3 py-1.5 font-mono text-xs outline-none focus:ring-2 focus:ring-accent"
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="font-mono text-[11px] text-muted-foreground">
+              Select a node to configure it. The artifact panel below compiles the whole
+              placement live.
+            </p>
+          )}
+        </aside>
+      </div>
+
+      {/* Artifact panel */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-border/70 bg-background/60">
+          <div className="flex items-center justify-between border-b border-border/60 px-4 py-2.5">
+            <p className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+              Policy document
+            </p>
+            <button
+              type="button"
+              onClick={() => copy(JSON.stringify(compiled.policy, null, 2), "policy")}
+              className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Copy className="size-3" aria-hidden="true" />
+              {copied === "policy" ? "copied" : "copy"}
+            </button>
+          </div>
+          <pre className="max-h-72 overflow-auto p-4 font-mono text-[11px] leading-relaxed">
+            {JSON.stringify(compiled.policy, null, 2)}
+          </pre>
+        </div>
+
+        <div className="rounded-2xl border border-border/70 bg-background/60">
+          <div className="flex items-center justify-between border-b border-border/60 px-4 py-2.5">
+            <p className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+              Invariant tuples (executeGuarded)
+            </p>
+            <button
+              type="button"
+              onClick={() => copy(JSON.stringify(compiled.invariants, null, 2), "invariants")}
+              className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Copy className="size-3" aria-hidden="true" />
+              {copied === "invariants" ? "copied" : "copy"}
+            </button>
+          </div>
+          {compiled.invariants.length === 0 ? (
+            <p className="p-4 font-mono text-[11px] text-muted-foreground">
+              No invariant blocks placed. Without one, the guard has nothing to assert and
+              the policy is not deployable.
+            </p>
+          ) : (
+            <pre className="max-h-72 overflow-auto p-4 font-mono text-[11px] leading-relaxed">
+              {JSON.stringify(compiled.invariants, null, 2)}
+            </pre>
+          )}
+        </div>
+      </div>
+
+      {compiled.issues.length > 0 ? (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-4">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-widest text-red-500">
+            Issues
+          </p>
+          <ul className="mt-2 space-y-1">
+            {compiled.issues.map((issue, index) => (
+              <li key={`${issue.blockId}-${index}`} className="font-mono text-[11px] text-red-500">
+                {issue.severity === "error" ? "✗" : "!"} {issue.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }

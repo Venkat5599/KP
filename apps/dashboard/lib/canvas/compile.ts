@@ -47,6 +47,13 @@ export interface Compiled {
   readonly deployable: boolean;
 }
 
+export interface CompileOptions {
+  /** Policy fields with no block representation, carried through unchanged. */
+  readonly carryOver?: Record<string, unknown>;
+  /** The policy name from the canvas toolbar. */
+  readonly name?: string;
+}
+
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 const SELECTOR = /^0x[0-9a-fA-F]{8}$/;
 const UINT = /^\d+$/;
@@ -105,7 +112,21 @@ function validate(blocks: readonly PlacedBlock[]): CompileIssue[] {
   return issues;
 }
 
-export function compile(blocks: readonly PlacedBlock[]): Compiled {
+function mergeInto(target: Record<string, unknown>, extra: Record<string, unknown>): void {
+  for (const [key, value] of Object.entries(extra)) {
+    const existing = target[key];
+    if (
+      typeof existing === "object" && existing !== null && !Array.isArray(existing) &&
+      typeof value === "object" && value !== null && !Array.isArray(value)
+    ) {
+      mergeInto(existing as Record<string, unknown>, value as Record<string, unknown>);
+    } else if (value !== undefined) {
+      target[key] = value;
+    }
+  }
+}
+
+export function compile(blocks: readonly PlacedBlock[], options: CompileOptions = {}): Compiled {
   const issues = validate(blocks);
 
   const targets = blocks.filter((b) => b.kind === "target");
@@ -197,6 +218,9 @@ export function compile(blocks: readonly PlacedBlock[]): Compiled {
       ],
     };
   }
+
+  if (options.name !== undefined && options.name.trim() !== "") policy["name"] = options.name;
+  if (options.carryOver !== undefined) mergeInto(policy, options.carryOver);
 
   const invariants: InvariantTuple[] = invariantBlocks.map((block) => ({
     target: value(block, "target", ""),
