@@ -10,12 +10,14 @@ import {
   LayoutGrid,
   Play,
   ShieldCheck,
+  Sliders,
   Timer,
   ScrollText,
 } from "lucide-react";
 
 const NAV = [
   { href: "/", label: "Execute", icon: Play, match: (path: string) => path === "/" },
+  { href: "/policy", label: "Policy", icon: Sliders, match: (path: string) => path.startsWith("/policy") },
   { href: "/overview", label: "Overview", icon: LayoutGrid, match: (path: string) => path.startsWith("/overview") },
   { href: "/guard", label: "Guard", icon: ShieldCheck, match: (path: string) => path.startsWith("/guard") },
   { href: "/verdicts", label: "Verdicts", icon: ScrollText, match: (path: string) => path.startsWith("/verdicts") },
