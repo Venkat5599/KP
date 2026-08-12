@@ -92,7 +92,7 @@ export function Hero(): ReactNode {
             variants={fadeInUp}
             transition={{ duration: 0.8, ease }}
           >
-            Live on Ethereum Sepolia
+            Simulation-gated execution for onchain agents
             <span className="text-accent">✦</span>
           </motion.div>
 
