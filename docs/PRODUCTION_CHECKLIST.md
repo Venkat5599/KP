@@ -84,15 +84,38 @@ README.
   agent to route through it") and explicit non-goals (not a wallet, not a strategy,
   not an LLM in the decision path).
 
+## Plan milestones completed in the production pass
+
+- [OK] M5 keeper — `apps/keeper` continuous guarded executor (RPC position read,
+  intent build, gateway submit; 10 tests, fail-fast env, boot verified).
+- [OK] M6 HOLD path — gateway hold ledger (`POST /v1/holds`, release, cancel, list)
+  with Discord/Telegram notifications, env-gated (8 route tests + notify tests).
+- [OK] M7 receipts — `packages/store` (Postgres on DATABASE_URL, memory fallback;
+  7 tests); `AnchorStore.sol` (7 forge tests, conflict + idempotent re-anchor);
+  hourly batch anchoring (`packages/receipts/src/anchor.ts` + `scripts/anchoring.ts`,
+  idempotent per batch); static stateless `apps/verifier` (digest-consistency test
+  against the receipts package).
+- [OK] M8 marketplace workflow — `workflows/noyeet-verify.json` paid x402 definition
+  + import README; gateway `POST /v1/verify` (tested). The paid listing itself needs
+  the org account (no org key in repo).
+- [OK] M9 chaos report — `docs/chaos-report.md`; on-chain rows proven against the
+  deployed Sepolia guard on an anvil fork (safe broadcast mined status 1; unsafe
+  broadcast reverted `NOYEET/1:INV:0:1120…:1400…` with state unchanged; NOT_EXECUTOR
+  refused; REENTRANT + AnchorStore rows from forge). Reproduce via
+  `scripts/chaos-fork.sh`.
+- [OK] M10 DX — `templates/create-noyeet-agent` (one-command guarded broadcast,
+  tested), README 60-second quickstart.
+- [OK] `docs/threat-model.md`, `docs/runbook.md` (rollback + incident response),
+  `METRICS_TOKEN` auth on `/api/metrics`.
+
 ## Remaining before public launch
 
-1. Wire HOLD notification delivery (Discord/Telegram envs are declared but reach no
-   code path), or mark HOLD as receipt-only in the README.
-2. Add an auth token (or rate limit) on `/api/metrics` — it is an unauthenticated
-   Prometheus endpoint; each scrape costs two KeeperHub simulations.
-3. Write the rollback runbook (redeploy previous build; contract is immutable by
-   design).
+1. Live HOLD/notification demo and live broadcast execution IDs — require the org
+   KeeperHub key and a funded executor on the guard (code paths tested; see
+   docs/chaos-report.md §3 for the induce procedure).
+2. Deploy `AnchorStore` and set `ANCHOR_ADDRESS` for on-chain anchoring (contract
+   tested; script fails fast until configured).
 
-Score: 78/100 — launchable with caveats. No funds at risk (testnet, no owner keys in
-repo, guard immutable, contract verified); the gaps are process (notifications,
-metrics auth, runbook), not correctness.
+Score: 92/100 — launchable. No funds at risk (testnet, no owner keys in repo, guard
+immutable, contract verified on Etherscan). The remaining 8 points are environment
+provisioning (org key, funded executor, AnchorStore deployment), not code.

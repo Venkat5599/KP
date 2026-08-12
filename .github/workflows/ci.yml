@@ -13,7 +13,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
-      - run: bun test packages apps/gateway
+      - run: bun test packages apps templates
       - run: bash scripts/check-purity.sh
 
   contracts:

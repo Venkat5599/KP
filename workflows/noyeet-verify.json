@@ -1,0 +1,51 @@
+{
+  "name": "noyeet/verify",
+  "description": "Verify a noyeet decision receipt: recompute the RFC 8785 canonical digest and compare against a claimed value.",
+  "version": "1",
+  "triggers": [
+    {
+      "type": "callable",
+      "paid": true,
+      "payment": {
+        "scheme": "x402",
+        "client_auto_select": true
+      }
+    }
+  ],
+  "env": [
+    {
+      "name": "NOYEET_VERIFY_ENDPOINT",
+      "required": true,
+      "description": "Base URL of the noyeet gateway, e.g. https://gateway.example.com"
+    }
+  ],
+  "input_schema": {
+    "type": "object",
+    "required": ["receipt"],
+    "properties": {
+      "receipt": { "type": "object", "description": "A noyeet decision receipt." },
+      "claimedDigest": { "type": "string", "description": "Optional digest to compare against." }
+    }
+  },
+  "steps": [
+    {
+      "id": "verify",
+      "action": "http_request",
+      "method": "POST",
+      "url": "{{env.NOYEET_VERIFY_ENDPOINT}}/v1/verify",
+      "headers": { "content-type": "application/json" },
+      "body": {
+        "receipt": "{{input.receipt}}",
+        "claimedDigest": "{{input.claimedDigest}}"
+      }
+    }
+  ],
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "digest": { "type": "string", "description": "Recomputed receipt digest." },
+      "matches": { "type": ["boolean", "null"], "description": "Claim comparison, or null when no claim was provided." }
+    }
+  },
+  "output": "{{steps.verify.body}}"
+}

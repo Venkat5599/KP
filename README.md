@@ -10,6 +10,27 @@ Guard: [`0x4Bd0501fb1c0dEecaCD3efd50340Cd82Bb8E7F0f`](https://sepolia.etherscan.
 
 ---
 
+## Quickstart (60 seconds)
+
+```bash
+bun install
+cp .env.example .env        # fill KEEPERHUB_API_KEY, DATABASE_URL, NOYEET_*
+bun test packages apps templates
+cd apps/gateway && bun run start
+```
+
+Then land a guarded transaction with the starter (needs a funded executor on your
+guard):
+
+```bash
+cp templates/create-noyeet-agent/.env.example templates/create-noyeet-agent/.env
+cd templates/create-noyeet-agent && bun install && bun run start
+```
+
+Or run the live dashboard + keeper against the deployed Sepolia guard (see
+`apps/keeper` and `docs/runbook.md`). Verification of the guard's on-chain behavior is
+reproducible with `scripts/chaos-fork.sh` against a Sepolia fork.
+
 ## The problem
 
 An autonomous agent holding a private key is an unbounded liability. It decides, it signs,

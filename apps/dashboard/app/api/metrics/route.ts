@@ -24,9 +24,22 @@ export const revalidate = 0;
 
 const PROM_CONTENT_TYPE = "text/plain; version=0.0.4; charset=utf-8";
 
-export async function GET(): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   const apiKey = process.env["KEEPERHUB_API_KEY"];
   const baseUrl = process.env["KEEPERHUB_BASE_URL"] ?? "https://app.keeperhub.com";
+
+  // Optional scrape auth: when METRICS_TOKEN is set, scrapes must present it as
+  // `Authorization: Bearer <token>` (or `?token=`). When unset the endpoint stays
+  // open, which matches the deployed Prometheus config.
+  const token = process.env["METRICS_TOKEN"];
+  if (token !== undefined && token !== "") {
+    const header = request.headers.get("authorization");
+    const url = new URL(request.url);
+    const presented = header?.startsWith("Bearer ") ? header.slice(7) : url.searchParams.get("token");
+    if (presented !== token) {
+      return new Response("unauthorized", { status: 401 });
+    }
+  }
 
   if (!apiKey) {
     // Expose the misconfiguration as a metric rather than a 500. An alert on
