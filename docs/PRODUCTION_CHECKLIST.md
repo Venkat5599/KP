@@ -108,14 +108,23 @@ README.
 - [OK] `docs/threat-model.md`, `docs/runbook.md` (rollback + incident response),
   `METRICS_TOKEN` auth on `/api/metrics`.
 
-## Remaining before public launch
+## Things to be done (environment provisioning — code is complete and tested)
 
-1. Live HOLD/notification demo and live broadcast execution IDs — require the org
-   KeeperHub key and a funded executor on the guard (code paths tested; see
-   docs/chaos-report.md §3 for the induce procedure).
-2. Deploy `AnchorStore` and set `ANCHOR_ADDRESS` for on-chain anchoring (contract
-   tested; script fails fast until configured).
+All eight need the org KeeperHub key and/or a funded Sepolia wallet. Each ticks
+independently; nothing here is code work.
+
+Live end-to-end (needs KEEPERHUB_API_KEY + funded executor on the guard):
+1. Gateway boots with the real key and authenticates (`noyeet_keeperhub_authenticated` = 1).
+2. A real `/v1/authorize`: KeeperHub simulates the intent against the guard; verdict + receipt digest from the live API.
+3. A real broadcast: ALLOW intent lands on Sepolia; real `executionId` + tx hash (pasteable on Etherscan).
+4. A real HOLD: large-value intent escalates, hold record created, Discord/Telegram notification delivered; release/cancel live.
+5. `apps/keeper` runs continuously — at least one automated RPC-read → gateway-submit cycle (M5's "runs during judging" claim).
+
+Live anchoring (needs funded deployer + admin wallet):
+6. `AnchorStore` deployed on Sepolia; admin set to the KeeperHub wallet.
+7. First real anchor: `bun run anchor` with `DATABASE_URL` + `ANCHOR_ADDRESS` → a Merkle root committed onchain.
+8. Verification against the anchored root: a receipt proves against the on-chain root via `apps/verifier`, not just locally.
 
 Score: 92/100 — launchable. No funds at risk (testnet, no owner keys in repo, guard
-immutable, contract verified on Etherscan). The remaining 8 points are environment
-provisioning (org key, funded executor, AnchorStore deployment), not code.
+immutable, contract verified on Etherscan). The remaining 8 points are the items
+above: environment provisioning, not code.
