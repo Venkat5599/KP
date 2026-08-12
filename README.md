@@ -4,7 +4,7 @@
 
 **Your agent can't yeet your money.**
 
-![Live demo](https://img.shields.io/badge/live-dashboard--nu--two--93.vercel.app-3C5A54) ![Tests](https://img.shields.io/badge/tests-156%20passing-2F6B4F) ![License](https://img.shields.io/badge/license-MIT-9E3D33) ![Stack](https://img.shields.io/badge/stack-Solidity%20·%20TypeScript%20·%20Foundry-3C5A54)
+![Live demo](https://img.shields.io/badge/live-dashboard--nu--two--93.vercel.app-3C5A54) ![Tests](https://img.shields.io/badge/tests-188%20passing-2F6B4F) ![License](https://img.shields.io/badge/license-MIT-9E3D33) ![Stack](https://img.shields.io/badge/stack-Solidity%20·%20TypeScript%20·%20Foundry-3C5A54)
 
 Agents do not get keys. They get permits, decided by what the chain says will happen and enforced atomically when it does.
 
@@ -48,12 +48,12 @@ curl https://dashboard-nu-two-93-six.vercel.app/api/probe
 ```json
 {"live":true,"guard":"0x4Bd0501fb1c0dEecaCD3efd50340Cd82Bb8E7F0f","floor":"1400000000000000000",
  "results":[
-  {"label":"Rebalance to 1.5","resultingHealthFactor":"1500000000000000000","verdict":"ALLOW","httpStatus":200,"failureKind":null,"revertReason":null,"gasEstimate":"52667"},
-  {"label":"Rebalance to 1.12","resultingHealthFactor":"1120000000000000000","verdict":"DENY","httpStatus":400,"failureKind":"revert","revertReason":"Error(NOYEET/1:INV:0:1120000000000000000:1400000000000000000)","gasEstimate":null}],
- "at":"2026-08-12T15:36:38.564Z"}
+  {"label":"Rebalance to 1540000000000000000","resultingHealthFactor":"1540000000000000000","verdict":"DENY","httpStatus":400,"failureKind":"revert","revertReason":"Error(NOYEET/1:NOT_EXECUTOR)","gasEstimate":null},
+  {"label":"Rebalance to 1120000000000000000","resultingHealthFactor":"1120000000000000000","verdict":"DENY","httpStatus":400,"failureKind":"revert","revertReason":"Error(NOYEET/1:NOT_EXECUTOR)","gasEstimate":null}],
+ "at":"2026-08-12T21:23:01.883Z"}
 ```
 
-Both calls hit the same contract through the same function with the same argument type. Only the state they would produce differs. The first is permitted; the second is refused and the refusal names the violated invariant by index, with the observed and required values.
+Both calls hit the same contract through the same function with the same argument type. The pipeline is live end to end; the refusal currently names `NOT_EXECUTOR` because the deployment's KeeperHub wallet (`0x1776d4d7…`) is not yet an executor on the guard — one admin transaction (`setExecutor(0x1776d4d751d97c85845bf54e6ce364cec62d4bbf, true)`) flips the same endpoint to the real ALLOW/DENY pair (proven earlier against the same guard: safe composite mined, unsafe composite reverted `INV:0:1120…:1400…`). The output above is quoted from the live endpoint, not synthesized.
 
 ## The problem
 
@@ -139,7 +139,7 @@ chain
 | `packages/store` | TypeScript | Receipt store: Postgres when `DATABASE_URL` is set, in-memory fallback |
 | `packages/observability` | TypeScript | Prometheus metrics collection |
 | `apps/gateway` | Hono | Authorization pipeline composing policy, simulation, receipts; `POST /v1/authorize`, `POST /v1/execute`, `POST /v1/holds` (+ release/cancel), `POST /v1/verify`, `GET /v1/executions/:id`, `GET /healthz` |
-| `apps/dashboard` | Next.js | Landing + live ledger + contract reads + receipt verifier + `/api/probe`, `/api/metrics` |
+| `apps/dashboard` | Next.js | Dapp shell: `/` execute (policy → simulate → broadcast), `/policy` n8n-style drag-and-drop policy canvas, `/overview`, `/guard`, `/verdicts`, `/transactions`, `/holds`, `/verifier`, `/operations` (observability) + `/api/execute`, `/api/probe`, `/api/health`, `/api/metrics`, `/api/transactions`, `/api/holds` |
 | `apps/keeper` | TypeScript | Continuous guarded executor: RPC position read -> intent -> gateway submit |
 | `apps/verifier` | Static HTML + bundled TS | Stateless receipt digest verifier, opens from `file://` |
 | `templates/create-noyeet-agent` | TypeScript | Starter: one command from a clean machine to a guarded, landed testnet transaction |
@@ -158,14 +158,15 @@ chain
 | Feature | Status | Detail |
 | --- | --- | --- |
 | Guard on Sepolia, verified on Etherscan | Yes | `0x4Bd0501fb1c0dEecaCD3efd50340Cd82Bb8E7F0f`; executor `0x5Fe224…DD582`; constructor args verified; fuzzed (1024 runs) |
+| Live executor for this deployment | Partial | The deployment key signs with KeeperHub wallet `0x1776d4d7…`, which is **not** an executor yet — `setExecutor(0x1776d4d751d97c85845bf54e6ce364cec62d4bbf, true)` as admin `0x2D51FfD3…` unlocks the ALLOW/DENY pair and broadcasts |
 | ALLOW / DENY on the live API | Yes | `/api/probe` runs both simulations per request against the live KeeperHub API |
 | On-chain enforcement | Yes | Proven on a fork of Sepolia: safe composite mined status 1; unsafe composite reverted `INV:0:1120…:1400…` with state unchanged (`scripts/chaos-fork.sh`) |
 | Policy VM: 12 rules, three verdicts | Yes | Purity-gated in CI |
 | HOLD path | Yes | Gateway hold ledger + Discord/Telegram notification (env-gated); release/cancel via API. Tempo-style signing is **not** integrated — the hold is held by the gateway, not by Tempo |
 | Receipts: canonical digest + Merkle batches | Yes | 37 tests; digest consistency with the static verifier pinned by test |
-| On-chain receipt anchoring | Partial | `AnchorStore.sol` deployed on Sepolia at `0x3Dc29f2C35f2840D9c7503c66dD3d0Cd468c4f6b` (admin = KeeperHub wallet, verified on chain, [tx](https://sepolia.etherscan.io/tx/0x2fd94339127ff68e7eec025d2d5aad0793ce00f74b2c5080a716c6345c706ae4)); first anchor pending — needs the org KeeperHub key and a receipt store |
+| On-chain receipt anchoring | Partial | `AnchorStore.sol` deployed on Sepolia at `0x3Dc29f2C35f2840D9c7503c66dD3d0Cd468c4f6b` (admin = KeeperHub wallet, verified on chain, [tx](https://sepolia.etherscan.io/tx/0x2fd94339127ff68e7eec025d2d5aad0793ce00f74b2c5080a716c6345c706ae4)); first anchor pending — `admin` is immutable and set to the original key's wallet `0x5Fe224…`, so an anchor must be signed by that original key (or the contract needs admin rotation) and needs a receipt store (`DATABASE_URL`) |
 | Policy-hash commitment on chain | Partial | `anchor(batchId, root, policyHash)` binds the policy in force per batch (tested, incl. conflict on mismatch); the deployed AnchorStore is ready — first anchor commits both |
-| Keeper running continuously | Partial | `apps/keeper` ready (10 tests); a live run needs the org KeeperHub key and a funded executor on the guard |
+| Keeper running continuously | Partial | `apps/keeper` ready; a live run needs the same executor registration above (the org key is in place) |
 | Marketplace workflow `noyeet/verify` | Partial | Definition + import README ready; the paid listing needs the org account |
 | `failureKind` discrimination | Yes | `"validation"` never reported as an invariant breach (tested) |
 | Oracle median-of-three feeds | No | Not built. The guard probes the live target directly; a multi-feed design is roadmap |
@@ -180,16 +181,16 @@ chain
 
 ## Tests
 
-156 tests, zero failing: 133 TypeScript (11 files) + 23 Solidity.
+188 tests, zero failing: 164 TypeScript (14 files) + 24 Solidity (15 + 8 AnchorStore + 1 reentrancy).
 
 ```bash
 bun test packages apps templates
 ```
 
 ```
-Ran 133 tests across 11 files. [2.96s]
+Ran 164 tests across 14 files. [4.13s]
  0 fail
- 797 expect() calls
+ 878 expect() calls
 ```
 
 ```bash
@@ -197,8 +198,8 @@ cd packages/guard && forge test --summary
 ```
 
 ```
-Suite result: ok. 15 passed; 0 failed; 0 skipped; finished in 885.67ms
-Suite result: ok. 7 passed; 0 failed; 0 skipped   (AnchorStore)
+Suite result: ok. 15 passed; 0 failed; 0 skipped; finished in 186.34ms
+Suite result: ok. 8 passed; 0 failed; 0 skipped   (AnchorStore)
 Suite result: ok. 1 passed; 0 failed; 0 skipped   (reentrancy)
 ```
 
@@ -210,7 +211,7 @@ CI (`.github/workflows/ci.yml`) runs typecheck across all packages/apps/template
 git clone https://github.com/Venkat5599/KP.git noyeet && cd noyeet
 bun install
 cp .env.example .env      # add your KeeperHub organisation API key (kh_...)
-bun test                  # 133 tests, no network required
+bun test                  # 164 tests, no network required
 ```
 
 Run the gateway:
@@ -241,7 +242,15 @@ bash scripts/chaos-fork.sh
 | --- | --- | --- |
 | `KEEPERHUB_API_KEY` | — | KeeperHub org API key (`kh_…`). Required by gateway, keeper, anchoring script |
 | `KEEPERHUB_BASE_URL` | `https://app.keeperhub.com` | API base URL |
-| `BASE_RPC_URL` | — | Chain RPC for contract reads |
+| `NOYEET_RPC_URL` | public Sepolia RPC | Chain RPC for dashboard contract reads (`eth_call`) |
+| `NOYEET_GUARD_ADDRESS` / `NOYEET_TARGET_ADDRESS` / `NOYEET_EXECUTOR_ADDRESS` | — | Guard, target, executor for the dashboard dapp |
+| `NOYEET_CHAIN_NAME` / `NOYEET_EXPLORER` | — | Chain label and explorer base for the dashboard |
+| `NOYEET_HEALTH_FACTOR_FLOOR` | — | The invariant floor the dapp asserts (wei) |
+| `NOYEET_SEED_TRANSACTIONS` | — | JSON seed rows for the transactions page |
+| `NOYEET_GATEWAY_URL` | — | Gateway base URL; the dashboard proxies its holds queue and shows /readyz |
+| `KAFKA_ENABLED` / `KAFKA_BROKERS` | `false` / `localhost:19092` | Gateway event-log producer (kafkajs, acks=-1, keyed by intentId) |
+| `OTEL_ENABLED` / `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | `false` / local OTLP | Gateway OpenTelemetry traces |
+| `GATEWAY_URL` | — | Keeper: where to submit intents (required by `apps/keeper`) |
 | `DATABASE_URL` | — | Postgres (Neon-compatible) receipt store; unset => in-memory |
 | `NOYEET_POLICY` | — | Policy document (JSON) |
 | `NOYEET_POLICY_HASH` | — | Policy keccak256, carried in every receipt |
@@ -276,7 +285,7 @@ forge create src/AnchorStore.sol:AnchorStore --rpc-url "$SEPOLIA_RPC_URL" \
 
 ```
 apps/
-  dashboard/      Next.js: landing + live ledger + verifier + /api/probe, /api/metrics
+  dashboard/      Next.js dapp: / (execute), /policy (canvas), pages per section, /api/execute + /api/probe + /api/health + /api/metrics
   gateway/        Hono authorization pipeline (/v1/authorize, /v1/execute, /v1/holds, /v1/verify)
   keeper/         Continuous guarded executor loop
   verifier/       Static, stateless receipt verifier
@@ -305,7 +314,7 @@ docs/
 | --- | --- |
 | Contracts | Solidity 0.8.26, Foundry (forge, cast, anvil), forge-std (vendored, pinned) |
 | Backend | TypeScript, Hono, bun |
-| Frontend | Next.js (dashboard), static HTML (verifier) |
+| Frontend | Next.js dapp, React Flow (policy canvas), static HTML (verifier) |
 | Execution | KeeperHub direct execution API — simulate:true, idempotency keys, cold-start/retry, Turnkey custody, spending caps, gas sponsorship |
 | Store | Postgres (Neon-compatible) or in-memory |
 | CI | GitHub Actions (typecheck, tests, purity, forge fmt/build/test) |
