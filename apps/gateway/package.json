@@ -13,12 +13,12 @@
     "@noyeet/policy": "workspace:*",
     "@noyeet/keeperhub": "workspace:*",
     "@noyeet/receipts": "workspace:*",
-    "hono": "^4.6.0",
+    "@noyeet/store": "workspace:*",
     "@noyeet/events": "workspace:*",
     "@noyeet/resilience": "workspace:*",
     "@noyeet/telemetry": "workspace:*",
     "@noyeet/observability": "workspace:*",
-    "@hono/node-server": "^1.13.0"
+    "hono": "^4.6.0"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

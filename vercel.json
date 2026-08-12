@@ -1,0 +1,5 @@
+{
+  "installCommand": "bun install --frozen-lockfile",
+  "buildCommand": "cd apps/dashboard && bun run build",
+  "outputDirectory": "apps/dashboard/.next"
+}

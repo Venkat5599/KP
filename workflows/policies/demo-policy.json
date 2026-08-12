@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "name": "sepolia-rebalance-keeper",
+  "chains": [11155111],
+  "targets": {
+    "allow": ["0x2BeaFD2Ed0D8e3831752b3243E7C5b2CA67Fdb0B"],
+    "selectors": {
+      "0x2BeaFD2Ed0D8e3831752b3243E7C5b2CA67Fdb0B": ["0x9d0bf2e9"]
+    }
+  },
+  "limits": {
+    "maxNativeValuePerIntent": "1000000000000000000",
+    "maxNativeValuePerWindow": "3000000000000000000",
+    "windowSeconds": 3600,
+    "maxIntentsPerWindow": 5,
+    "maxGas": "1500000"
+  },
+  "holdAbove": {
+    "nativeValue": "500000000000000000",
+    "unknownCounterparty": false
+  },
+  "approvals": {
+    "maxApproval": "1000000000"
+  },
+  "minInvariants": 1
+}

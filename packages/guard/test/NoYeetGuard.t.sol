@@ -37,21 +37,8 @@ contract NoYeetGuardTest is Test {
 
     // ---------------------------------------------------------------- helpers
 
-    function _invariantBroken(uint256 index, uint256 got, uint256 want)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return bytes(
-            string.concat(
-                "NOYEET/1:INV:",
-                vm.toString(index),
-                ":",
-                vm.toString(got),
-                ":",
-                vm.toString(want)
-            )
-        );
+    function _invariantBroken(uint256 index, uint256 got, uint256 want) internal pure returns (bytes memory) {
+        return bytes(string.concat("NOYEET/1:INV:", vm.toString(index), ":", vm.toString(got), ":", vm.toString(want)));
     }
 
     function _hfInvariant(NoYeetGuard.Op op, uint256 threshold)
@@ -76,29 +63,21 @@ contract NoYeetGuardTest is Test {
     {
         inv = new NoYeetGuard.Invariant[](1);
         inv[0] = NoYeetGuard.Invariant({
-            target: address(vault),
-            probe: abi.encodeWithSignature("balance()"),
-            word: 0,
-            op: op,
-            threshold: threshold
+            target: address(vault), probe: abi.encodeWithSignature("balance()"), word: 0, op: op, threshold: threshold
         });
     }
 
     function _setHf(uint256 newHf) internal view returns (NoYeetGuard.Call[] memory calls) {
         calls = new NoYeetGuard.Call[](1);
         calls[0] = NoYeetGuard.Call({
-            target: address(pool),
-            value: 0,
-            data: abi.encodeWithSelector(MockLendingPool.borrowMore.selector, newHf)
+            target: address(pool), value: 0, data: abi.encodeWithSelector(MockLendingPool.borrowMore.selector, newHf)
         });
     }
 
     function _withdraw(uint256 amount) internal view returns (NoYeetGuard.Call[] memory calls) {
         calls = new NoYeetGuard.Call[](1);
         calls[0] = NoYeetGuard.Call({
-            target: address(vault),
-            value: 0,
-            data: abi.encodeWithSelector(MockVault.withdraw.selector, amount)
+            target: address(vault), value: 0, data: abi.encodeWithSelector(MockVault.withdraw.selector, amount)
         });
     }
 
@@ -160,17 +139,13 @@ contract NoYeetGuardTest is Test {
         if (amount > maxDrop) {
             vm.expectRevert(_invariantBroken(0, amount, maxDrop));
         }
-        guard.executeGuarded(
-            _withdraw(amount), _balanceInvariant(NoYeetGuard.Op.REL_DEC_MAX, maxDrop)
-        );
+        guard.executeGuarded(_withdraw(amount), _balanceInvariant(NoYeetGuard.Op.REL_DEC_MAX, maxDrop));
     }
 
     function test_relative_increase_bound() public {
         NoYeetGuard.Call[] memory calls = new NoYeetGuard.Call[](1);
         calls[0] = NoYeetGuard.Call({
-            target: address(vault),
-            value: 0,
-            data: abi.encodeWithSelector(MockVault.deposit.selector, 500e18)
+            target: address(vault), value: 0, data: abi.encodeWithSelector(MockVault.deposit.selector, 500e18)
         });
 
         vm.prank(executor);
@@ -243,11 +218,8 @@ contract NoYeetGuardTest is Test {
     /// @notice A protocol's own error is more useful than ours, so it must survive unchanged.
     function test_failing_call_bubbles_the_targets_reason() public {
         NoYeetGuard.Call[] memory calls = new NoYeetGuard.Call[](1);
-        calls[0] = NoYeetGuard.Call({
-            target: address(vault),
-            value: 0,
-            data: abi.encodeWithSelector(MockVault.fail.selector)
-        });
+        calls[0] =
+            NoYeetGuard.Call({target: address(vault), value: 0, data: abi.encodeWithSelector(MockVault.fail.selector)});
 
         vm.prank(executor);
         vm.expectRevert(bytes("call reverted"));
@@ -257,9 +229,7 @@ contract NoYeetGuardTest is Test {
     function test_silent_failure_falls_back_to_CALL_FAILED() public {
         NoYeetGuard.Call[] memory calls = new NoYeetGuard.Call[](1);
         calls[0] = NoYeetGuard.Call({
-            target: address(vault),
-            value: 0,
-            data: abi.encodeWithSelector(MockVault.failSilent.selector)
+            target: address(vault), value: 0, data: abi.encodeWithSelector(MockVault.failSilent.selector)
         });
 
         vm.prank(executor);

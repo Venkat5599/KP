@@ -1,39 +1,32 @@
-/**
- * Configuration, validated at boot.
- *
- * Every value is read once, here, and the process refuses to start if a required one is
- * missing. The alternative — reading `process.env` at the point of use — means a missing
- * key surfaces as a 500 on the first request that happens to need it, which in this system
- * could be hours after deploy and after the operator has already told an agent it is safe
- * to run. Fail at boot, loudly, or do not boot.
- */
+import { KeeperHubClient } from "@noyeet/keeperhub";
+import { parsePolicy, type Policy } from "@noyeet/policy";
+import { openStore, type ReceiptStore } from "@noyeet/store";
+import { CircuitBreaker } from "@noyeet/resilience";
+import { envTargets, type NotifyTargets } from "./notify.ts";
 
 export interface GatewayConfig {
-  readonly port: number;
-  readonly keeperhub: { readonly apiKey: string; readonly baseUrl: string };
+  readonly client: KeeperHubClient;
+  readonly policy: Policy;
+  /** keccak256 of the canonical policy document, committed onchain before the run. */
+  readonly policyHash: `0x${string}`;
   readonly guard: `0x${string}`;
-  readonly policyPath: string;
+  /** JSON ABI of the guard's executeGuarded function. */
+  readonly guardAbi: string;
+  /** Every decision lands here; Postgres when DATABASE_URL is set, memory otherwise. */
+  readonly store: ReceiptStore;
+  /** HOLD notification targets; empty when no webhook is configured. */
+  readonly targets: NotifyTargets;
+  /**
+   * Guards every call to KeeperHub. It fails CLOSED: while it is open the gateway
+   * returns DENY rather than a permissive fallback, because an unreachable simulator
+   * means the resulting state cannot be predicted, and an unpredictable state is the
+   * one thing this system exists to refuse.
+   */
+  readonly breaker: CircuitBreaker;
   readonly kafka: { readonly brokers: readonly string[]; readonly enabled: boolean };
   readonly otlp: { readonly endpoint: string; readonly enabled: boolean };
-  readonly breaker: {
-    readonly failureThreshold: number;
-    readonly cooldownMs: number;
-    readonly successThreshold: number;
-  };
   readonly serviceVersion: string;
 }
-
-export class ConfigError extends Error {
-  constructor(missing: readonly string[]) {
-    super(
-      `Gateway cannot start. Missing or invalid environment: ${missing.join(", ")}. ` +
-        `Copy .env.example and fill these in.`,
-    );
-    this.name = "ConfigError";
-  }
-}
-
-const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 
 function int(value: string | undefined, fallback: number): number {
   if (value === undefined || value.trim() === "") return fallback;
@@ -46,43 +39,97 @@ function bool(value: string | undefined, fallback: boolean): boolean {
   return value === "1" || value.toLowerCase() === "true";
 }
 
+const REQUIRED = [
+  "KEEPERHUB_API_KEY",
+  "NOYEET_POLICY",
+  "NOYEET_POLICY_HASH",
+  "NOYEET_GUARD_ADDRESS",
+] as const;
+
+/** The bundled default: the executeGuarded ABI, identical to the dashboard's probe. */
+const DEFAULT_GUARD_ABI = JSON.stringify([
+  {
+    type: "function",
+    name: "executeGuarded",
+    stateMutability: "payable",
+    inputs: [
+      {
+        name: "calls",
+        type: "tuple[]",
+        components: [
+          { name: "target", type: "address" },
+          { name: "value", type: "uint256" },
+          { name: "data", type: "bytes" },
+        ],
+      },
+      {
+        name: "inv",
+        type: "tuple[]",
+        components: [
+          { name: "target", type: "address" },
+          { name: "probe", type: "bytes" },
+          { name: "word", type: "uint8" },
+          { name: "op", type: "uint8" },
+          { name: "threshold", type: "uint256" },
+        ],
+      },
+    ],
+    outputs: [{ name: "results", type: "bytes[]" }],
+  },
+]);
+
+/**
+ * Build the gateway configuration from the environment.
+ *
+ * The required-env check runs BEFORE any client construction: a missing variable must
+ * fail the boot with the exact missing names, not crash opaquely later inside a
+ * constructor or on the first request.
+ */
 export function loadConfig(env: Record<string, string | undefined> = process.env): GatewayConfig {
-  const missing: string[] = [];
+  const missing = REQUIRED.filter((name) => {
+    const value = env[name];
+    return value === undefined || value === "";
+  });
 
-  const apiKey = env["KEEPERHUB_API_KEY"];
-  if (apiKey === undefined || apiKey.trim() === "") missing.push("KEEPERHUB_API_KEY");
-
-  const guard = env["NOYEET_GUARD_ADDRESS"];
-  if (guard === undefined || !ADDRESS.test(guard)) {
-    missing.push("NOYEET_GUARD_ADDRESS (must be a 20-byte 0x address)");
+  if (missing.length > 0) {
+    throw new Error(`missing env: ${missing.join(", ")}`);
   }
 
-  const policyPath = env["NOYEET_POLICY_PATH"];
-  if (policyPath === undefined || policyPath.trim() === "") missing.push("NOYEET_POLICY_PATH");
+  const policyJson = env["NOYEET_POLICY"] as string;
+  let policy: Policy;
+  try {
+    policy = parsePolicy(JSON.parse(policyJson) as unknown);
+  } catch (error) {
+    throw new Error(`NOYEET_POLICY is not a valid policy: ${(error as Error).message}`);
+  }
 
-  if (missing.length > 0) throw new ConfigError(missing);
+  const breaker = new CircuitBreaker({
+    failureThreshold: int(env["BREAKER_FAILURE_THRESHOLD"], 5),
+    cooldownMs: int(env["BREAKER_COOLDOWN_MS"], 30_000),
+    successThreshold: int(env["BREAKER_SUCCESS_THRESHOLD"], 2),
+  });
 
   return {
-    port: int(env["PORT"], 8080),
-    keeperhub: {
-      apiKey: apiKey as string,
+    client: new KeeperHubClient({
+      apiKey: env["KEEPERHUB_API_KEY"] as string,
       baseUrl: env["KEEPERHUB_BASE_URL"] ?? "https://app.keeperhub.com",
-    },
-    guard: guard as `0x${string}`,
-    policyPath: policyPath as string,
+      breaker,
+    }),
+    breaker,
     kafka: {
       brokers: (env["KAFKA_BROKERS"] ?? "localhost:19092").split(",").map((b) => b.trim()),
-      enabled: bool(env["KAFKA_ENABLED"], true),
+      enabled: bool(env["KAFKA_ENABLED"], false),
     },
     otlp: {
       endpoint: env["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] ?? "http://localhost:4318/v1/traces",
-      enabled: bool(env["OTEL_ENABLED"], true),
-    },
-    breaker: {
-      failureThreshold: int(env["BREAKER_FAILURE_THRESHOLD"], 5),
-      cooldownMs: int(env["BREAKER_COOLDOWN_MS"], 30_000),
-      successThreshold: int(env["BREAKER_SUCCESS_THRESHOLD"], 2),
+      enabled: bool(env["OTEL_ENABLED"], false),
     },
     serviceVersion: env["NOYEET_VERSION"] ?? "0.1.0",
+    policy,
+    policyHash: env["NOYEET_POLICY_HASH"] as `0x${string}`,
+    guard: env["NOYEET_GUARD_ADDRESS"] as `0x${string}`,
+    guardAbi: env["NOYEET_GUARD_ABI"] ?? DEFAULT_GUARD_ABI,
+    store: openStore(env),
+    targets: envTargets(env),
   };
 }
