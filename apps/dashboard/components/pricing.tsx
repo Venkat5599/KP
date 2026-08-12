@@ -1,61 +1,154 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Terminal } from "lucide-react";
+import { Check, ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
 
 /**
- * Deploy, not pricing. noyeet is open source — the honest equivalent of a pricing
- * section is the exact set of commands that gets a guarded transaction on chain.
+ * The pricing UI, reframed honestly: noyeet is open source, so the three "plans"
+ * are three real ways to run it. Prices are $0 because they are $0.
  */
-const commands = [
-  { line: "git clone https://github.com/Venkat5599/KP.git noyeet && cd noyeet", note: "clone" },
-  { line: "bun install && cp .env.example .env", note: "install + configure" },
-  { line: "bun test packages apps templates", note: "133 tests, no network required" },
-  { line: "cd apps/gateway && bun run start", note: "gateway on :3000" },
+const plans = [
+  {
+    name: "Clone",
+    price: 0,
+    monthlyPrice: 0,
+    description: "Read the code and the evidence",
+    features: ["156 tests, zero failing", "Guard verified on Etherscan", "Honesty table: real vs pending", "MIT licensed"],
+    popular: false,
+    href: "https://github.com/Venkat5599/KP",
+    cta: "Open the repo",
+  },
+  {
+    name: "Run",
+    price: 0,
+    monthlyPrice: 0,
+    description: "Gateway, keeper, verifier, dashboard",
+    features: ["bun install && bun test", "apps/gateway on :3000", "Live dashboard at /dashboard", "Static receipt verifier"],
+    popular: true,
+    href: "/dashboard",
+    cta: "Open the dashboard",
+  },
+  {
+    name: "Deploy",
+    price: 0,
+    monthlyPrice: 0,
+    description: "Your guard, your policy, live anchors",
+    features: ["forge create NoYeetGuard", "Policy VM: 12 rules", "AnchorStore per-batch policy hash", "Chaos-fork reproduction script"],
+    popular: false,
+    href: "https://github.com/Venkat5599/KP#run-it-locally",
+    cta: "Read the quickstart",
+  },
 ];
+
+const ease = [0.23, 1, 0.32, 1] as const;
+
+function PricingCard({
+  plan,
+  index,
+}: {
+  plan: (typeof plans)[0];
+  index: number;
+}): ReactNode {
+  const isPopular = plan.popular;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-50px" }}
+      transition={{ duration: 0.6, ease, delay: index * 0.1 }}
+      className="relative"
+    >
+      {isPopular && (
+        <div className="absolute -inset-1 rounded-[1.2em] bg-accent" aria-hidden="true" />
+      )}
+
+      <div
+        className={`relative flex h-full flex-col rounded-2xl bg-frame p-6 sm:p-8 ${
+          isPopular ? "" : "border border-border"
+        }`}
+      >
+        {isPopular && (
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+            <span className="inline-block rounded-full bg-accent px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-black/50">
+              Recommended
+            </span>
+          </div>
+        )}
+
+        <h3 className="text-xl font-semibold text-foreground">{plan.name}</h3>
+
+        <div className="mt-4">
+          <div className="flex items-end gap-3">
+            <span className="text-5xl font-bold tracking-tight text-foreground">
+              ${plan.price}
+            </span>
+            <span className="mb-1 text-sm text-muted-foreground">/forever</span>
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {plan.description}
+          </p>
+        </div>
+
+        <motion.a
+          href={plan.href}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className={`mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-colors ${
+            isPopular
+              ? "bg-foreground text-background hover:bg-foreground/90"
+              : "bg-muted text-foreground hover:bg-muted/80"
+          }`}
+        >
+          {plan.cta}
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </motion.a>
+
+        <div className="mt-8">
+          <p className="text-sm font-medium text-muted-foreground">Includes:</p>
+          <ul className="mt-4 space-y-3">
+            {plan.features.map((feature) => (
+              <li key={feature} className="flex items-center gap-3">
+                <Check className="h-4 w-4 shrink-0 text-foreground" strokeWidth={2.5} />
+                <span className="text-sm text-foreground">{feature}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 export function Pricing(): ReactNode {
   return (
-    <section className="px-6 py-24 md:py-32">
-      <div className="mx-auto max-w-4xl">
+    <section id="pricing" className="w-full bg-background px-6 py-20 sm:py-28 scroll-mt-24">
+      <div className="mx-auto max-w-5xl">
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
-          className="mb-14 text-center"
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, ease }}
+          className="mb-12 text-center sm:mb-16"
         >
-          <h2 className="text-4xl font-semibold tracking-tight text-balance md:text-5xl">
-            Open source. Run it in four commands.
+          <span className="text-sm font-medium text-muted-foreground">
+            Open source
+          </span>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+            Three ways to run it, all $0
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-muted-foreground">
-            The contract is deployed and verified on Sepolia. The repo builds from a
-            clean clone — CI runs typecheck, tests, the purity gate, and the Foundry
-            suite on every push.
+          <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground sm:text-lg">
+            The contract is deployed and verified; the repo builds from a clean clone.
+            Pick a starting point.
           </p>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.8, ease: [0.23, 1, 0.32, 1], delay: 0.1 }}
-          className="overflow-hidden rounded-3xl border border-border bg-background/60"
-        >
-          <div className="flex items-center gap-2 border-b border-border px-5 py-3">
-            <Terminal className="size-4 text-muted-foreground" aria-hidden="true" />
-            <span className="font-mono text-xs text-muted-foreground">terminal</span>
-          </div>
-          <div className="space-y-4 p-6">
-            {commands.map((command) => (
-              <div key={command.line}>
-                <code className="block break-all font-mono text-sm">{command.line}</code>
-                <p className="mt-1 text-xs text-muted-foreground">{command.note}</p>
-              </div>
-            ))}
-          </div>
-        </motion.div>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
+          {plans.map((plan, index) => (
+            <PricingCard key={plan.name} plan={plan} index={index} />
+          ))}
+        </div>
       </div>
     </section>
   );
