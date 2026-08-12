@@ -4,12 +4,11 @@
 node_modules/
 out/
 cache/
-lib/
 broadcast/
 dist/
 .DS_Store
 *.log
-node_modules/
+*.tsbuildinfo
 .next/
 next-env.d.ts
 .vercel/
