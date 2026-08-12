@@ -1,0 +1,41 @@
+# OpenTelemetry Collector.
+#
+# Receives OTLP from the gateway and the anchor consumer, batches, and forwards to Tempo.
+# Kept deliberately thin: no sampling, no attribute processors. At this volume every trace
+# is worth keeping, and a processor that drops or rewrites attributes is a processor that
+# eventually hides the one span an operator needed.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Batching is the one processor that earns its place: it turns per-span exports into
+  # per-batch exports, which is the difference between the exporter being free and the
+  # exporter being on the hot path.
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 75
+    spike_limit_percentage: 15
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/tempo]
+  telemetry:
+    logs:
+      level: warn

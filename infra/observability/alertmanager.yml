@@ -1,0 +1,54 @@
+# Alert routing.
+#
+# Two severities, two behaviours, and the difference is deliberate.
+#
+# `critical` means the safety property is not holding right now: the guard is not enforcing,
+# or the API key is dead. It repeats every 30 minutes until someone acts, because an alert
+# that fires once at 3am and never again is an alert that gets slept through.
+#
+# `warning` means something is degrading but the system is still refusing correctly. It
+# repeats every 4 hours, so it is visible without being noise.
+#
+# Receivers are intentionally left as no-op webhooks. Wiring a real Slack or PagerDuty URL
+# is a per-deployment secret and does not belong in a committed file.
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: [alertname, severity]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: default
+
+  routes:
+    - matchers: [severity="critical"]
+      receiver: critical
+      group_wait: 10s
+      repeat_interval: 30m
+
+    - matchers: [severity="warning"]
+      receiver: warning
+
+inhibit_rules:
+  # While the guard is not enforcing at all, a latency warning is noise: the thing being
+  # measured is already down. Suppress the smaller alert so the page is unambiguous.
+  - source_matchers: [alertname="GuardNotEnforcing"]
+    target_matchers: [severity="warning"]
+    equal: [service]
+
+receivers:
+  - name: default
+    webhook_configs:
+      - url: http://127.0.0.1:5001/alerts
+        send_resolved: true
+
+  - name: critical
+    webhook_configs:
+      - url: http://127.0.0.1:5001/alerts/critical
+        send_resolved: true
+
+  - name: warning
+    webhook_configs:
+      - url: http://127.0.0.1:5001/alerts/warning
+        send_resolved: true

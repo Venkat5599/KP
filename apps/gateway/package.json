@@ -4,12 +4,24 @@
   "type": "module",
   "private": true,
   "description": "Authorization gateway: policy VM, guard-wrapped simulation, receipts.",
-  "scripts": { "test": "bun test", "start": "bun run src/index.ts", "typecheck": "tsc --noEmit" },
+  "scripts": {
+    "test": "bun test",
+    "start": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "@noyeet/policy": "workspace:*",
     "@noyeet/keeperhub": "workspace:*",
     "@noyeet/receipts": "workspace:*",
-    "hono": "^4.6.0"
+    "hono": "^4.6.0",
+    "@noyeet/events": "workspace:*",
+    "@noyeet/resilience": "workspace:*",
+    "@noyeet/telemetry": "workspace:*",
+    "@noyeet/observability": "workspace:*",
+    "@hono/node-server": "^1.13.0"
   },
-  "devDependencies": { "typescript": "^5.6.0", "@types/bun": "latest" }
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/bun": "latest"
+  }
 }

@@ -1,0 +1,29 @@
+# Tempo, single-binary local mode.
+#
+# Local filesystem storage with a 72h retention: long enough to investigate an incident from
+# the previous day, short enough that a laptop does not fill up. A production deployment
+# swaps the backend block for object storage and changes nothing else.
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+
+ingester:
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 72h
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks

@@ -1,0 +1,15 @@
+{
+  "name": "@noyeet/anchor",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Consumes decision events, Merkle-batches receipts for onchain anchoring.",
+  "scripts": { "start": "bun run src/index.ts", "typecheck": "tsc --noEmit" },
+  "dependencies": {
+    "@noyeet/events": "workspace:*",
+    "@noyeet/receipts": "workspace:*",
+    "@noyeet/observability": "workspace:*",
+    "@noyeet/telemetry": "workspace:*"
+  },
+  "devDependencies": { "typescript": "^5.6.0", "@types/bun": "latest" }
+}

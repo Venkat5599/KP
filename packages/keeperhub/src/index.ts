@@ -1,5 +1,6 @@
 export {
   KeeperHubClient,
+  type BreakerLike,
   type ClientOptions,
   type ContractCallRequest,
   type ExecutionAccepted,

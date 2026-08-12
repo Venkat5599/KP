@@ -1,0 +1,13 @@
+{
+  "name": "@noyeet/events",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Versioned decision events over the Kafka protocol, with a dead-letter path.",
+  "main": "src/index.ts",
+  "scripts": { "test": "bun test", "typecheck": "tsc --noEmit" },
+  "dependencies": {
+    "kafkajs": "^2.2.4"
+  },
+  "devDependencies": { "typescript": "^5.6.0", "@types/bun": "latest" }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@noyeet/resilience",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Fail-closed circuit breaker. No dependencies, injected clock.",
+  "main": "src/index.ts",
+  "scripts": { "test": "bun test", "typecheck": "tsc --noEmit" },
+  "devDependencies": { "typescript": "^5.6.0", "@types/bun": "latest" }
+}

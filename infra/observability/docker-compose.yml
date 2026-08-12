@@ -20,6 +20,7 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ./rules:/etc/prometheus/rules:ro
       - prometheus-data:/prometheus
     ports:
       - "9090:9090"
@@ -47,6 +48,106 @@ services:
     ports:
       - "3001:3000"
 
+  # --------------------------------------------------------------- event log
+  #
+  # Redpanda rather than Apache Kafka: same wire protocol, one binary, no separate
+  # coordination service to keep alive. kafkajs cannot tell the difference.
+  #
+  # Two listeners is not optional. A single listener advertises one hostname, and whichever
+  # side is not on that network hangs on connect with no error worth reading — the classic
+  # "producer connects, then times out on send" failure. `internal` is what other containers
+  # reach; `external` is what a process on the host reaches on :19092.
+  redpanda:
+    image: redpandadata/redpanda:v24.3.4
+    container_name: noyeet-redpanda
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr=internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --advertise-pandaproxy-addr=internal://redpanda:8082,external://localhost:18082
+      - --rpc-addr=redpanda:33145
+      - --advertise-rpc-addr=redpanda:33145
+      - --mode=dev-container
+      - --smp=1
+      - --default-log-level=warn
+    ports:
+      - "19092:19092"
+      - "18082:18082"
+      - "9644:9644"
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Web UI for the topics. Read-only in practice, and the fastest way to answer
+  # "did the decision actually land on the log" without writing a consumer.
+  redpanda-console:
+    image: redpandadata/console:v2.8.1
+    container_name: noyeet-redpanda-console
+    restart: unless-stopped
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+    ports:
+      - "8085:8080"
+
+  # ------------------------------------------------------------------ tracing
+  #
+  # The collector is the only thing services talk to. Pointing an app straight at Tempo
+  # welds the app to one backend; the collector means swapping Tempo for anything else is a
+  # config change here rather than a redeploy of every service.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.117.0
+    container_name: noyeet-otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./otel/config.yaml:/etc/otel/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      - tempo
+
+  tempo:
+    image: grafana/tempo:2.7.0
+    container_name: noyeet-tempo
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"
+
+  # ------------------------------------------------------------- alert routing
+  #
+  # Prometheus decides WHEN to alert; Alertmanager decides WHO hears it and how often.
+  # Without it the rules fire into a void that only shows up in the Prometheus UI.
+  alertmanager:
+    image: prom/alertmanager:v0.28.0
+    container_name: noyeet-alertmanager
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    ports:
+      - "9093:9093"
+
 volumes:
   prometheus-data:
   grafana-data:
+  redpanda-data:
+  tempo-data:
+  alertmanager-data:

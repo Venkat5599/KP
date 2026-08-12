@@ -14,6 +14,19 @@ import { parseGuardDenial, type GuardDenial } from "./reason.ts";
 
 export type Hex = `0x${string}`;
 
+/**
+ * The breaker surface this client needs, declared structurally.
+ *
+ * Typed as a shape rather than imported from `@noyeet/resilience` so the adapter keeps no
+ * dependency on the reliability package: a caller that wants no breaker passes nothing, and
+ * a caller with a different implementation is not forced to adopt ours.
+ */
+export interface BreakerLike {
+  assertAllowed(): void;
+  recordSuccess(): void;
+  recordFailure(): void;
+}
+
 export interface ClientOptions {
   readonly apiKey: string;
   readonly baseUrl?: string;
@@ -22,6 +35,30 @@ export interface ClientOptions {
   readonly random?: () => number;
   readonly retry?: RetryPolicy;
   readonly timeoutMs?: number;
+  /**
+   * Optional circuit breaker. Only transport faults feed it — a simulated revert is a
+   * correct prediction from a healthy service, and counting it would let an attacker open
+   * the circuit by submitting unsafe intents.
+   */
+  readonly breaker?: BreakerLike;
+}
+
+/**
+ * Does this error mean the upstream is unwell, as opposed to the request being wrong?
+ *
+ * A 4xx other than 429 is the caller's fault and says nothing about KeeperHub's health, so
+ * it must not count toward opening the circuit. The network, timeout, rate-limit, cold-start
+ * and upstream kinds all do.
+ */
+function isTransportFault(error: unknown): boolean {
+  if (!(error instanceof KeeperHubError)) return false;
+  return (
+    error.kind === "network" ||
+    error.kind === "timeout" ||
+    error.kind === "rate_limited" ||
+    error.kind === "cold_start" ||
+    error.kind === "upstream"
+  );
 }
 
 // ------------------------------------------------------------------ requests
@@ -188,12 +225,14 @@ export class KeeperHubClient {
   private readonly retry: RetryPolicy;
   private readonly timeoutMs: number;
   private readonly apiKey: string;
+  private readonly breaker: BreakerLike | null;
 
   /** One in-flight send per wallet, so concurrent intents cannot race the nonce. */
   private readonly walletQueues = new Map<string, Promise<unknown>>();
 
   constructor(options: ClientOptions) {
     if (!options.apiKey) throw new Error("KeeperHubClient requires an apiKey");
+    this.breaker = options.breaker ?? null;
     this.apiKey = options.apiKey;
     this.baseUrl = (options.baseUrl ?? "https://app.keeperhub.com").replace(/\/+$/, "");
     this.transport = options.transport ?? fetchTransport;
@@ -205,7 +244,37 @@ export class KeeperHubClient {
 
   // --------------------------------------------------------------- transport
 
+  /**
+   * Breaker-guarded entry point.
+   *
+   * The check is outside the retry loop on purpose. Retrying inside an open circuit is the
+   * exact behaviour the breaker exists to stop, and re-checking per attempt would let a
+   * circuit that opened mid-sequence abandon a request that was already in flight upstream.
+   *
+   * Note what counts as success: a simulated revert reaches here as a normal 400 response
+   * returned by `sendWithRetries`, so it records a success. That is correct — the simulator
+   * answered, and the answer was DENY.
+   */
   private async request(
+    method: "GET" | "POST",
+    path: string,
+    body?: unknown,
+    idempotencyKey?: string,
+  ): Promise<HttpResponse> {
+    this.breaker?.assertAllowed();
+
+    try {
+      const response = await this.sendWithRetries(method, path, body, idempotencyKey);
+      this.breaker?.recordSuccess();
+      return response;
+    } catch (error) {
+      if (isTransportFault(error)) this.breaker?.recordFailure();
+      else this.breaker?.recordSuccess();
+      throw error;
+    }
+  }
+
+  private async sendWithRetries(
     method: "GET" | "POST",
     path: string,
     body?: unknown,

@@ -1,0 +1,188 @@
+# SLOs for noyeet authorization.
+#
+# The existing alerts.yml holds threshold alerts: "this number crossed a line." Those answer
+# "is something broken right now." They do not answer "are we spending our reliability budget
+# faster than we can afford", which is the question that decides whether to stop shipping.
+#
+# Two SLOs, both stated against what an agent actually experiences.
+#
+#   Availability: 99.5% of authorization requests return a verdict rather than an error.
+#     A DENY is a verdict. A refusal is the product, so counting it against availability
+#     would be measuring the wrong thing entirely: the system succeeded.
+#
+#   Latency: 99% of authorizations complete within 2.5 seconds. Above that an agent starts
+#     hitting its own timeout, and a timed-out authorization is indistinguishable to the
+#     agent from a denied one, which erodes the HOLD path that makes the system deployable.
+#
+# Multi-window multi-burn-rate alerting, per the Google SRE workbook. A single long window is
+# too slow to catch a total outage; a single short window pages on every blip. Two windows
+# ANDed together fire fast on a large burn and slow on a small persistent one.
+
+groups:
+  - name: noyeet-slo-recording
+    interval: 30s
+    rules:
+      - record: noyeet:authorization_requests:rate5m
+        expr: sum(rate(noyeet_authorizations_total[5m]))
+
+      - record: noyeet:authorization_errors:rate5m
+        expr: sum(rate(noyeet_upstream_failures_total[5m]))
+
+      - record: noyeet:availability:error_ratio_rate5m
+        expr: sum(rate(noyeet_upstream_failures_total[5m])) / clamp_min(sum(rate(noyeet_authorizations_total[5m])), 1e-9)
+
+      - record: noyeet:availability:error_ratio_rate30m
+        expr: sum(rate(noyeet_upstream_failures_total[30m])) / clamp_min(sum(rate(noyeet_authorizations_total[30m])), 1e-9)
+
+      - record: noyeet:availability:error_ratio_rate1h
+        expr: sum(rate(noyeet_upstream_failures_total[1h])) / clamp_min(sum(rate(noyeet_authorizations_total[1h])), 1e-9)
+
+      - record: noyeet:availability:error_ratio_rate6h
+        expr: sum(rate(noyeet_upstream_failures_total[6h])) / clamp_min(sum(rate(noyeet_authorizations_total[6h])), 1e-9)
+
+      # Ratio of requests SLOWER than the 2.5s objective. The le="2.5" bucket counts the
+      # requests at or under budget, so one minus that ratio is the count over it.
+      - record: noyeet:latency:slow_ratio_rate5m
+        expr: 1 - (sum(rate(noyeet_authorization_duration_seconds_bucket{le="2.5"}[5m])) / clamp_min(sum(rate(noyeet_authorization_duration_seconds_count[5m])), 1e-9))
+
+      - record: noyeet:latency:slow_ratio_rate1h
+        expr: 1 - (sum(rate(noyeet_authorization_duration_seconds_bucket{le="2.5"}[1h])) / clamp_min(sum(rate(noyeet_authorization_duration_seconds_count[1h])), 1e-9))
+
+      - record: noyeet:latency:p99_5m
+        expr: histogram_quantile(0.99, sum by (le) (rate(noyeet_authorization_duration_seconds_bucket[5m])))
+
+      # Fraction of the 30-day availability budget still unspent. Negative means overspent.
+      - record: noyeet:availability:budget_remaining_ratio
+        expr: 1 - (sum(increase(noyeet_upstream_failures_total[30d])) / clamp_min(0.005 * sum(increase(noyeet_authorizations_total[30d])), 1e-9))
+
+  - name: noyeet-slo-alerts
+    rules:
+      # 14.4x burn over 1h exhausts a 30-day budget in about two days. The 5m window ANDed in
+      # stops one stale sample from paging.
+      - alert: AuthorizationErrorBudgetBurningFast
+        expr: noyeet:availability:error_ratio_rate1h > (14.4 * 0.005) and noyeet:availability:error_ratio_rate5m > (14.4 * 0.005)
+        for: 2m
+        labels:
+          severity: critical
+          service: noyeet
+          slo: availability
+        annotations:
+          summary: Authorization availability budget is burning 14x too fast
+          description: >
+            More than 7.2% of authorization requests are failing to produce a verdict. At this
+            rate the whole 30-day error budget is gone in about two days. Agents are being
+            refused for operational reasons rather than policy ones.
+
+      # 6x burn over 6h is the slow leak: not a page-now outage, but it exhausts the budget
+      # before the month ends.
+      - alert: AuthorizationErrorBudgetBurningSlow
+        expr: noyeet:availability:error_ratio_rate6h > (6 * 0.005) and noyeet:availability:error_ratio_rate30m > (6 * 0.005)
+        for: 15m
+        labels:
+          severity: warning
+          service: noyeet
+          slo: availability
+        annotations:
+          summary: Authorization availability budget is burning 6x too fast
+          description: >
+            A sustained low-level failure rate is eating the error budget. Not an outage, but
+            it will exhaust the month if it continues.
+
+      - alert: AuthorizationLatencyBudgetBurning
+        expr: noyeet:latency:slow_ratio_rate1h > (14.4 * 0.01) and noyeet:latency:slow_ratio_rate5m > (14.4 * 0.01)
+        for: 5m
+        labels:
+          severity: warning
+          service: noyeet
+          slo: latency
+        annotations:
+          summary: Authorization latency budget is burning fast
+          description: >
+            More than 14% of authorizations are taking longer than the 2.5s objective. Agents
+            with their own timeouts will start treating a slow verdict as no verdict.
+
+      - alert: ErrorBudgetExhausted
+        expr: noyeet:availability:budget_remaining_ratio <= 0
+        for: 10m
+        labels:
+          severity: warning
+          service: noyeet
+          slo: availability
+        annotations:
+          summary: The 30-day availability error budget is spent
+          description: >
+            Reliability work takes priority over feature work until the trailing window
+            recovers.
+
+      # The breaker being open is the fail-closed path working correctly. It is still a page,
+      # because while it holds no agent can be authorized to do anything at all.
+      - alert: CircuitBreakerOpen
+        expr: noyeet_breaker_state == 2
+        for: 1m
+        labels:
+          severity: critical
+          service: noyeet
+        annotations:
+          summary: The KeeperHub circuit breaker is open
+          description: >
+            The preflight simulator is unreachable, so no post-state can be predicted and
+            every intent is being refused. This is correct behaviour, and it means the system
+            is currently authorizing nothing.
+
+      - alert: EventLogPublishFailing
+        expr: increase(noyeet_events_published_total{outcome="error"}[10m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: noyeet
+        annotations:
+          summary: Decision receipts are not reaching the event log
+          description: >
+            Verdicts are still being returned, but they are not durable. A receipt that never
+            reached the log cannot appear in an anchored Merkle root, and a receipt absent
+            from the root is indistinguishable from one that never existed.
+
+      # Advisor finding: a DLQ absorbing everything looks healthy on a depth graph. Rate as a
+      # FRACTION of ingress is the signal that catches a total outage masquerading as calm.
+      - alert: DeadLetterRateHigh
+        expr: sum(rate(noyeet_anchor_receipts_total[10m])) >= 0 and (sum(rate(noyeet_events_published_total{outcome="error"}[10m])) / clamp_min(sum(rate(noyeet_events_published_total[10m])), 1e-9)) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          service: noyeet
+        annotations:
+          summary: More than 5% of decision events are failing to publish
+          description: >
+            A dead-letter queue that quietly absorbs a large share of traffic reads as healthy
+            on a depth graph while receipts silently stop becoming durable. This alerts on the
+            ratio rather than the count for exactly that reason.
+
+      # The watcher needs watching. If transport failures are being observed but the breaker
+      # never opens, the breaker is broken and every fail-closed guarantee below it is void.
+      # This is the inverse of CircuitBreakerOpen and catches the failure that alert cannot.
+      - alert: BreakerNotTrippingDespiteFailures
+        expr: sum(rate(noyeet_upstream_failures_total{kind!="circuit_open"}[15m])) > 0.1 and max(noyeet_breaker_state) == 0
+        for: 15m
+        labels:
+          severity: critical
+          service: noyeet
+        annotations:
+          summary: Upstream failures are sustained but the circuit breaker has not opened
+          description: >
+            Transport faults are arriving steadily and the breaker is still reporting closed.
+            Either the failure classification is wrong or the breaker is not wired in. Until
+            this is resolved the fail-closed guarantee cannot be assumed to hold.
+
+      # Deadman switch. Prometheus scraping the gateway at all is itself a signal; when this
+      # stops firing, the monitoring path is broken rather than the system being quiet.
+      - alert: GatewayScrapeMissing
+        expr: up{job="noyeet-gateway"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          service: noyeet
+        annotations:
+          summary: Prometheus cannot scrape the gateway
+          description: >
+            Every other alert here is computed from gateway metrics. While this fires, the
+            absence of other alerts means nothing.

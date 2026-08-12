@@ -13,3 +13,7 @@ node_modules/
 .next/
 next-env.d.ts
 .vercel/
+
+# build + local logs
+*.log
+tsconfig.tsbuildinfo

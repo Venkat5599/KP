@@ -4,7 +4,8 @@
   "workspaces": [
     "packages/*",
     "apps/gateway",
-    "apps/dashboard"
+    "apps/dashboard",
+    "apps/anchor"
   ],
   "scripts": {
     "test": "bun test packages apps/gateway",
