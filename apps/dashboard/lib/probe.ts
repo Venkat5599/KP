@@ -8,7 +8,7 @@
 
 import { loadConfig } from "./env";
 
-const GUARD_ABI = JSON.stringify([
+const GUARD_ABI_JSON = JSON.stringify([
   {
     type: "function",
     name: "executeGuarded",
@@ -39,6 +39,8 @@ const GUARD_ABI = JSON.stringify([
   },
 ]);
 
+export const GUARD_ABI = GUARD_ABI_JSON;
+
 export interface ProbeResult {
   readonly label: string;
   readonly resultingHealthFactor: string;
@@ -58,11 +60,13 @@ export interface ProbePayload {
   readonly at: string;
 }
 
-function borrowMore(amountWei: bigint): string {
+/** borrowMore(uint256) — 0x9d0bf2e9 is the protocol selector (fixed, like an ABI). */
+export function borrowMore(amountWei: bigint): string {
   return `0x9d0bf2e9${amountWei.toString(16).padStart(64, "0")}`;
 }
 
-function probeCalldata(guardAddress: string): string {
+/** The health-factor probe the guard runs: staticcall into the guard, word 5. */
+export function probeCalldata(guardAddress: string): string {
   return `0xbf92857c${guardAddress.slice(2).toLowerCase().padStart(64, "0")}`;
 }
 
