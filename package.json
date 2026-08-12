@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "test": "bun test packages apps/gateway",
+    "typecheck": "bash -c 'for d in packages/* apps/gateway; do [ -f \"$d/package.json\" ] || continue; (cd \"$d\" && bun run typecheck) || exit 1; done'",
     "purity": "bash scripts/check-purity.sh"
   }
 }
