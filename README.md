@@ -163,8 +163,8 @@ chain
 | Policy VM: 12 rules, three verdicts | ✅ | Purity-gated in CI |
 | HOLD path | ✅ | Gateway hold ledger + Discord/Telegram notification (env-gated); release/cancel via API. Tempo-style signing is **not** integrated — the hold is held by the gateway, not by Tempo |
 | Receipts: canonical digest + Merkle batches | ✅ | 37 tests; digest consistency with the static verifier pinned by test |
-| On-chain receipt anchoring | ⚠️ | `AnchorStore.sol` + `bun run anchor` ready and tested (8 tests); **not deployed** — needs a funded deployer and `ANCHOR_ADDRESS` set |
-| Policy-hash commitment on chain | ⚠️ | `anchor(batchId, root, policyHash)` binds the policy in force per batch (tested, incl. conflict on mismatch); a live commitment needs the AnchorStore deploy — the same deploy as anchoring |
+| On-chain receipt anchoring | ⚠️ | `AnchorStore.sol` deployed on Sepolia at `0x3Dc29f2C35f2840D9c7503c66dD3d0Cd468c4f6b` (admin = KeeperHub wallet, verified on chain, [tx](https://sepolia.etherscan.io/tx/0x2fd94339127ff68e7eec025d2d5aad0793ce00f74b2c5080a716c6345c706ae4)); first anchor pending — needs the org KeeperHub key and a receipt store |
+| Policy-hash commitment on chain | ⚠️ | `anchor(batchId, root, policyHash)` binds the policy in force per batch (tested, incl. conflict on mismatch); the deployed AnchorStore is ready — first anchor commits both |
 | Keeper running continuously | ⚠️ | `apps/keeper` ready (10 tests); a live run needs the org KeeperHub key and a funded executor on the guard |
 | Marketplace workflow `noyeet/verify` | ⚠️ | Definition + import README ready; the paid listing needs the org account |
 | `failureKind` discrimination | ✅ | `"validation"` never reported as an invariant breach (tested) |
