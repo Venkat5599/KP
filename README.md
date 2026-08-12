@@ -4,7 +4,7 @@
 
 **Your agent can't yeet your money.**
 
-![Live demo](https://img.shields.io/badge/live-dashboard--nu--two--93.vercel.app-3C5A54) ![Tests](https://img.shields.io/badge/tests-188%20passing-2F6B4F) ![License](https://img.shields.io/badge/license-MIT-9E3D33) ![Stack](https://img.shields.io/badge/stack-Solidity%20·%20TypeScript%20·%20Foundry-3C5A54)
+![Live demo](https://img.shields.io/badge/live-dashboard--nu--two--93.vercel.app-3C5A54) ![Tests](https://img.shields.io/badge/tests-194%20passing-2F6B4F) ![License](https://img.shields.io/badge/license-MIT-9E3D33) ![Stack](https://img.shields.io/badge/stack-Solidity%20·%20TypeScript%20·%20Foundry-3C5A54)
 
 Agents do not get keys. They get permits, decided by what the chain says will happen and enforced atomically when it does.
 
@@ -46,14 +46,14 @@ curl https://dashboard-nu-two-93-six.vercel.app/api/probe
 ```
 
 ```json
-{"live":true,"guard":"0x4Bd0501fb1c0dEecaCD3efd50340Cd82Bb8E7F0f","floor":"1400000000000000000",
+{"live":true,"guard":"0x94FB7677358c44BB0617029a3162108Ae3aa557a","floor":"1400000000000000000",
  "results":[
-  {"label":"Rebalance to 1540000000000000000","resultingHealthFactor":"1540000000000000000","verdict":"DENY","httpStatus":400,"failureKind":"revert","revertReason":"Error(NOYEET/1:NOT_EXECUTOR)","gasEstimate":null},
-  {"label":"Rebalance to 1120000000000000000","resultingHealthFactor":"1120000000000000000","verdict":"DENY","httpStatus":400,"failureKind":"revert","revertReason":"Error(NOYEET/1:NOT_EXECUTOR)","gasEstimate":null}],
- "at":"2026-08-12T21:23:01.883Z"}
+  {"label":"Rebalance to 1540000000000000000","resultingHealthFactor":"1540000000000000000","verdict":"ALLOW","httpStatus":200,"failureKind":null,"revertReason":null,"gasEstimate":"50792"},
+  {"label":"Rebalance to 1120000000000000000","resultingHealthFactor":"1120000000000000000","verdict":"DENY","httpStatus":400,"failureKind":"revert","revertReason":"Error(NOYEET/1:INV:0:1120000000000000000:1400000000000000000)","gasEstimate":null}],
+ "at":"2026-08-12T21:45:00.000Z"}
 ```
 
-Both calls hit the same contract through the same function with the same argument type. The pipeline is live end to end; the refusal currently names `NOT_EXECUTOR` because the deployment's KeeperHub wallet (`0x1776d4d7…`) is not yet an executor on the guard — one admin transaction (`setExecutor(0x1776d4d751d97c85845bf54e6ce364cec62d4bbf, true)`) flips the same endpoint to the real ALLOW/DENY pair (proven earlier against the same guard: safe composite mined, unsafe composite reverted `INV:0:1120…:1400…`). The output above is quoted from the live endpoint, not synthesized.
+Both calls hit the same contract through the same function with the same argument type. Only the state they would produce differs. The first is permitted and broadcasts (real examples in [Transactions](#transactions)); the second is refused and the refusal names the violated invariant by index, with the observed and required values. Output quoted from the live endpoint.
 
 ## The problem
 
@@ -132,7 +132,7 @@ chain
 
 | Component | Technology | Responsibility |
 | --- | --- | --- |
-| `packages/guard` | Solidity 0.8.26, Foundry | `NoYeetGuard.sol` (execute, then assert), `AnchorStore.sol` (append-only receipt roots). Invariant fuzzing, 23 tests |
+| `packages/guard` | Solidity 0.8.26, Foundry | `NoYeetGuard.sol` (execute, then assert), `AnchorStore.sol` (append-only receipt roots), `PositionPool.sol` (the demo target the invariant reads). Invariant fuzzing, 30 tests |
 | `packages/policy` | TypeScript | Pure decision engine: 12 rules, three verdicts, zero I/O (CI-enforced) |
 | `packages/keeperhub` | TypeScript | Typed adapter over KeeperHub's REST API: idempotency keys, retry with jitter, 429/cold-start semantics, per-wallet send serialization, `failureKind` discrimination |
 | `packages/receipts` | TypeScript | RFC 8785 canonicalization, keccak256, sorted-pair Merkle trees, hourly anchor batches |
@@ -159,8 +159,9 @@ chain
 
 | Feature | Status | Detail |
 | --- | --- | --- |
-| Guard on Sepolia, verified on Etherscan | Yes | `0x4Bd0501fb1c0dEecaCD3efd50340Cd82Bb8E7F0f`; executor `0x5Fe224…DD582`; constructor args verified; fuzzed (1024 runs) |
-| Live executor for this deployment | Partial | The deployment key signs with KeeperHub wallet `0x1776d4d7…`, which is **not** an executor yet — `setExecutor(0x1776d4d751d97c85845bf54e6ce364cec62d4bbf, true)` as admin `0x2D51FfD3…` unlocks the ALLOW/DENY pair and broadcasts |
+| Guard on Sepolia (in use) | Yes | `0x94FB7677358c44BB0617029a3162108Ae3aa557a`, deployed with executor = the deployment key's KeeperHub wallet `0x1776d4d7…` (verified on chain); fuzzed (1024 runs) |
+| Original guard (history) | Yes | `0x4Bd0501fb1c0dEecaCD3efd50340Cd82Bb8E7F0f`, executor `0x5Fe224…DD582`; the guard the chaos-fork proofs were mined against |
+| ALLOW / DENY on the live API | Yes | `/api/probe` returns the real pair (quoted above); an ALLOW broadcast from the website completed on chain — [0xc2c8debc…](https://sepolia.etherscan.io/tx/0xc2c8debc1c8eb62600f57d62b6d53af623203b767e55cd8c71ad60cfbb1d3260) |
 | ALLOW / DENY on the live API | Yes | `/api/probe` runs both simulations per request against the live KeeperHub API |
 | On-chain enforcement | Yes | Proven on a fork of Sepolia: safe composite mined status 1; unsafe composite reverted `INV:0:1120…:1400…` with state unchanged (`scripts/chaos-fork.sh`) |
 | Policy VM: 12 rules, three verdicts | Yes | Purity-gated in CI |
@@ -178,12 +179,17 @@ chain
 | What | Hash |
 | --- | --- |
 | Agent transfer, executed through KeeperHub (execution id `ygfgqeispq6jac5psm9t1`, completed) | [`0xf2a08944…a2477`](https://sepolia.etherscan.io/tx/0xf2a08944a35b01174a06f620860dd3c21215f80bff996cec1fe27ba59caa2477) |
-| Guard deployment | [`0x75a17782…5e13f`](https://sepolia.etherscan.io/tx/0x75a17782e2bf0f266854891c8a40bc0a75de38a82d2346a1605391e5c4a5e13f) |
-| Target the invariant reads | [`0xf9ea685f…08757`](https://sepolia.etherscan.io/tx/0xf9ea685f7103913c399ee96b7dcee4a044bc17e5e374150a7d2a784222f08757) |
+| Original guard deployment | [`0x75a17782…5e13f`](https://sepolia.etherscan.io/tx/0x75a17782e2bf0f266854891c8a40bc0a75de38a82d2346a1605391e5c4a5e13f) |
+| Original target the invariant reads | [`0xf9ea685f…08757`](https://sepolia.etherscan.io/tx/0xf9ea685f7103913c399ee96b7dcee4a044bc17e5e374150a7d2a784222f08757) |
+| PositionPool deployment (demo target) | [`0x8d27e63a…9a1f`](https://sepolia.etherscan.io/tx/0x8d27e63ae032bfc6151636e6f732d91dd4375d8173142ae2f769c7009e919a1f) |
+| Live guard deployment (executor = deployment KeeperHub wallet) | [`0x78a0d5ff…5a`](https://sepolia.etherscan.io/tx/0x78a0d5ff4e1b72fe8a7d757624078490b20ec02d7c0ba0bc2426e6e48123ce5a) |
+| Position seeded to HF 1.2 for the live guard | [`0x48f6e23f…283`](https://sepolia.etherscan.io/tx/0x48f6e23fbbf5efa60ab7ee8d9e2059dc564eb962a4c1c4baeb7af6701a27c283) |
+| Guarded broadcast, direct pipeline (execution id `oakjghexxsxcpwx4hp94q`, completed) | [`0x56b9b888…c16`](https://sepolia.etherscan.io/tx/0x56b9b888bc83ee9a50252fb6ebd6b35723a5e7ce3d1c6ce5e4ed4b240fbe7c16) |
+| Guarded broadcast via the website execute page (execution id `d7vuibil2081s4zd1j8ne`, completed) | [`0xc2c8debc…260`](https://sepolia.etherscan.io/tx/0xc2c8debc1c8eb62600f57d62b6d53af623203b767e55cd8c71ad60cfbb1d3260) |
 
 ## Tests
 
-188 tests, zero failing: 164 TypeScript (14 files) + 24 Solidity (15 + 8 AnchorStore + 1 reentrancy).
+194 tests, zero failing: 164 TypeScript (14 files) + 30 Solidity (15 + 8 AnchorStore + 1 reentrancy + 6 PositionPool).
 
 ```bash
 bun test packages apps templates
@@ -200,9 +206,10 @@ cd packages/guard && forge test --summary
 ```
 
 ```
-Suite result: ok. 15 passed; 0 failed; 0 skipped; finished in 186.34ms
+Suite result: ok. 15 passed; 0 failed; 0 skipped
 Suite result: ok. 8 passed; 0 failed; 0 skipped   (AnchorStore)
 Suite result: ok. 1 passed; 0 failed; 0 skipped   (reentrancy)
+Suite result: ok. 6 passed; 0 failed; 0 skipped   (PositionPool)
 ```
 
 CI (`.github/workflows/ci.yml`) runs typecheck across all packages/apps/templates, the full test suite, the purity gate, and `forge fmt --check` + `forge build` + `forge test`.
@@ -301,7 +308,7 @@ apps/
   verifier/       Static, stateless receipt verifier
   anchor/         Kafka anchoring consumer (decision digests -> Merkle roots)
 packages/
-  guard/          NoYeetGuard.sol, AnchorStore.sol, Foundry suite (forge-std vendored)
+  guard/          NoYeetGuard.sol, AnchorStore.sol, PositionPool.sol, Foundry suite (forge-std vendored)
   policy/         Pure decision engine (12 rules, purity-gated)
   keeperhub/      Typed KeeperHub adapter (idempotency, retry, serialization)
   receipts/       Canonicalization, digests, Merkle batches
