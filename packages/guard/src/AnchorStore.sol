@@ -9,12 +9,13 @@ pragma solidity 0.8.26;
 /// @dev    Roots are keyed by batch id and chain-timestamped by the block number.
 ///         There is no update path: a wrong root is permanent, which is the point.
 contract AnchorStore {
-    event RootAnchored(uint256 indexed batchId, bytes32 root, uint256 blockNumber);
+    event RootAnchored(uint256 indexed batchId, bytes32 root, bytes32 policyHash, uint256 blockNumber);
 
     address public immutable admin;
 
     struct Anchor {
         bytes32 root;
+        bytes32 policyHash;
         uint256 blockNumber;
     }
 
@@ -29,17 +30,26 @@ contract AnchorStore {
         _;
     }
 
-    /// @notice Commit `root` as batch `batchId`. Idempotent: re-anchoring the same
-    ///         batch with the same root is a no-op rather than an overwrite.
-    function anchor(uint256 batchId, bytes32 root) external onlyAdmin returns (uint256 blockNumber) {
+    /// @notice Commit `root` as batch `batchId` together with the policy hash that
+    ///         was in force for that batch. Idempotent: re-anchoring the same batch
+    ///         with the same root and policy hash is a no-op rather than an
+    ///         overwrite. Any difference (root or policy hash) is a conflict: the
+    ///         batch's record is permanent.
+    function anchor(uint256 batchId, bytes32 root, bytes32 policyHash)
+        external
+        onlyAdmin
+        returns (uint256 blockNumber)
+    {
         Anchor storage existing = anchors[batchId];
         if (existing.root != bytes32(0)) {
-            if (existing.root != root) revert("NOYEET/1:ANCHOR_CONFLICT");
+            if (existing.root != root || existing.policyHash != policyHash) {
+                revert("NOYEET/1:ANCHOR_CONFLICT");
+            }
             return existing.blockNumber;
         }
         blockNumber = block.number;
-        anchors[batchId] = Anchor({root: root, blockNumber: blockNumber});
-        emit RootAnchored(batchId, root, blockNumber);
+        anchors[batchId] = Anchor({root: root, policyHash: policyHash, blockNumber: blockNumber});
+        emit RootAnchored(batchId, root, policyHash, blockNumber);
     }
 
     /// @notice Prove `leaf` was in `batchId`'s committed root.

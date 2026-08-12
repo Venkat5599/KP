@@ -122,7 +122,7 @@ Live end-to-end (needs KEEPERHUB_API_KEY + funded executor on the guard):
 
 Live anchoring (needs funded deployer + admin wallet):
 6. `AnchorStore` deployed on Sepolia; admin set to the KeeperHub wallet.
-7. First real anchor: `bun run anchor` with `DATABASE_URL` + `ANCHOR_ADDRESS` → a Merkle root committed onchain.
+7. First real anchor: `bun run anchor` with `DATABASE_URL` + `ANCHOR_ADDRESS` → a Merkle root **and the batch policy hash** committed onchain (`anchor(batchId, root, policyHash)`, tested).
 8. Verification against the anchored root: a receipt proves against the on-chain root via `apps/verifier`, not just locally.
 
 Score: 92/100 — launchable. No funds at risk (testnet, no owner keys in repo, guard

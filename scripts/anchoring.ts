@@ -31,7 +31,7 @@ function requireEnv(name: string): string {
   return value;
 }
 
-/** The exact AnchorStore.anchor(uint256,bytes32) ABI, as KeeperHub expects it. */
+/** The exact AnchorStore.anchor(uint256,bytes32,bytes32) ABI, as KeeperHub expects it. */
 const ANCHOR_ABI = JSON.stringify([
   {
     type: "function",
@@ -40,6 +40,7 @@ const ANCHOR_ABI = JSON.stringify([
     inputs: [
       { name: "batchId", type: "uint256" },
       { name: "root", type: "bytes32" },
+      { name: "policyHash", type: "bytes32" },
     ],
     outputs: [{ name: "blockNumber", type: "uint256" }],
   },
@@ -54,6 +55,21 @@ function groupByBatch(receipts: readonly StoredReceipt[]): Map<number, StoredRec
     else existing.push(receipt);
   }
   return groups;
+}
+
+/**
+ * A batch must be a single policy epoch: every member carries the same policy hash,
+ * so the anchored batch records which policy was in force. Mixed-policy batches are
+ * a configuration error and must not be anchored silently.
+ */
+function policyHashOf(members: readonly StoredReceipt[]): Hex {
+  const hashes = new Set(members.map((receipt) => receipt.policyHash.toLowerCase()));
+  if (hashes.size !== 1) {
+    throw new Error(
+      `batch spans ${hashes.size} policy hashes (${[...hashes].slice(0, 3).join(", ")}...) — refusing to anchor`,
+    );
+  }
+  return [...hashes][0] as Hex;
 }
 
 async function main(): Promise<void> {
@@ -84,6 +100,7 @@ async function main(): Promise<void> {
   for (const [batchId, members] of [...batches.entries()].sort(([a], [b]) => a - b)) {
     const digests = members.map((receipt) => receipt.digest as Hex);
     const batch = buildAnchorBatch(batchId, digests);
+    const policyHash = policyHashOf(members);
 
     const accepted = await client.executeContractCall(
       {
@@ -91,7 +108,7 @@ async function main(): Promise<void> {
         contractAddress: anchorAddress,
         functionName: "anchor",
         abi: ANCHOR_ABI,
-        functionArgs: JSON.stringify([batchId, batch.root]),
+        functionArgs: JSON.stringify([batchId, batch.root, policyHash]),
       },
       `noyeet-anchor-${batchId}`,
     );
@@ -104,6 +121,7 @@ async function main(): Promise<void> {
         anchor: {
           batchId,
           root: batch.root,
+          policyHash,
           leafIndex: entry.leafIndex,
           proof: entry.proof,
           executionId: accepted.executionId,
@@ -115,7 +133,8 @@ async function main(): Promise<void> {
     anchored += members.length;
     console.log(
       `anchored batch ${batchId}: ${members.length} receipts, root ${batch.root}, ` +
-        `execution ${accepted.executionId}${accepted.transactionHash ? ` (${accepted.transactionHash})` : " (tx pending)"}`,
+        `policy ${policyHash}, execution ${accepted.executionId}` +
+        `${accepted.transactionHash ? ` (${accepted.transactionHash})` : " (tx pending)"}`,
     );
   }
 

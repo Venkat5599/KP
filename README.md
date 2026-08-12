@@ -163,8 +163,8 @@ chain
 | Policy VM: 12 rules, three verdicts | ✅ | Purity-gated in CI |
 | HOLD path | ✅ | Gateway hold ledger + Discord/Telegram notification (env-gated); release/cancel via API. Tempo-style signing is **not** integrated — the hold is held by the gateway, not by Tempo |
 | Receipts: canonical digest + Merkle batches | ✅ | 37 tests; digest consistency with the static verifier pinned by test |
-| On-chain receipt anchoring | ⚠️ | `AnchorStore.sol` + `bun run anchor` ready and tested; **not deployed** — needs a funded deployer and `ANCHOR_ADDRESS` set |
-| Policy-hash commitment on chain | ❌ | In roadmap. The policy hash is carried in every receipt today; no on-chain commitment exists |
+| On-chain receipt anchoring | ⚠️ | `AnchorStore.sol` + `bun run anchor` ready and tested (8 tests); **not deployed** — needs a funded deployer and `ANCHOR_ADDRESS` set |
+| Policy-hash commitment on chain | ⚠️ | `anchor(batchId, root, policyHash)` binds the policy in force per batch (tested, incl. conflict on mismatch); a live commitment needs the AnchorStore deploy — the same deploy as anchoring |
 | Keeper running continuously | ⚠️ | `apps/keeper` ready (10 tests); a live run needs the org KeeperHub key and a funded executor on the guard |
 | Marketplace workflow `noyeet/verify` | ⚠️ | Definition + import README ready; the paid listing needs the org account |
 | `failureKind` discrimination | ✅ | `"validation"` never reported as an invariant breach (tested) |
@@ -314,12 +314,11 @@ docs/
 
 Honest, in rough priority order:
 
-1. **Deploy `AnchorStore` and anchor hourly batches on chain** — the contract and script are done; this needs a funded deployer and the org key. Receipts become provable against an on-chain root.
-2. **On-chain policy-hash commitment** — commit the policy hash (e.g. alongside an anchor batch) so rule changes are timestamped on chain.
+1. **Deploy `AnchorStore` and anchor hourly batches on chain** — the contract and script are done; the deploy commits both the batch root and the policy hash in force (`anchor(batchId, root, policyHash)`). Needs a funded deployer and the org key.
+2. **Run the keeper continuously** against the deployed guard with a funded executor — the "lives through judging" claim.
 3. **Tempo integration for HOLD** — hold signing currently lives in the gateway; wiring Tempo's signed-hold-and-release would move the human gate off the gateway entirely.
-4. **Run the keeper continuously** against the deployed guard with a funded executor — the "lives through judging" claim.
-5. **Multi-feed oracle design** — replace the single-target probe with a median of independent feeds for price-sensitive invariants.
-6. **List `noyeet/verify` on the marketplace** — the paid x402 workflow definition is ready; listing needs the org account.
+4. **Multi-feed oracle design** — replace the single-target probe with a median of independent feeds for price-sensitive invariants.
+5. **List `noyeet/verify` on the marketplace** — the paid x402 workflow definition is ready; listing needs the org account.
 
 ## License
 
