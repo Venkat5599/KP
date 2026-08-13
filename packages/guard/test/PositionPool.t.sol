@@ -95,10 +95,7 @@ contract PositionPoolTest is Test {
         assertEq(pool.healthFactorOf(address(guard)), 1363636363636363636);
         // repay 5e18 -> debt 50e18 -> HF 1.5 >= floor 1.4: the guard must allow it
         vm.prank(executor);
-        guard.executeGuarded(
-            _calls(address(pool), abi.encodeCall(PositionPool.repay, (5e18))),
-            _invariants(FLOOR)
-        );
+        guard.executeGuarded(_calls(address(pool), abi.encodeCall(PositionPool.repay, (5e18))), _invariants(FLOOR));
         assertEq(pool.healthFactorOf(address(guard)), 1500000000000000000);
     }
 
