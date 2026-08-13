@@ -1,10 +1,14 @@
 /**
- * The hold queue, shared by the /api/holds route and the page. Proxied live from
- * the gateway (NOYEET_GATEWAY_URL). When no gateway is configured the payload says
- * so; the page renders the honest empty state instead of a fabricated queue.
+ * The hold queue, shared by the /api/holds route and the page. Backed by the
+ * in-process hold ledger (lib/holds-ledger.ts): the gateway surface lives on this
+ * deployment at /v1/holds, and the ledger is the same module both read, so the
+ * page and the API can never disagree within an instance.
+ *
+ * The ledger is per-instance memory — the honest limit of serverless. The
+ * gateway's Postgres-backed store is the durable version for a long-lived run.
  */
 
-import { loadConfig } from "./env";
+import { listHolds as ledgerList } from "./holds-ledger";
 
 export interface HoldsPayload {
   readonly configured: boolean;
@@ -13,20 +17,6 @@ export interface HoldsPayload {
 }
 
 export async function listHolds(): Promise<HoldsPayload> {
-  const config = loadConfig();
-
-  if (config.gatewayUrl === null) {
-    return { configured: false, holds: [], reason: "NOYEET_GATEWAY_URL is not set" };
-  }
-
-  try {
-    const response = await fetch(`${config.gatewayUrl}/v1/holds`, { cache: "no-store" });
-    if (!response.ok) {
-      return { configured: true, holds: [], reason: `gateway returned HTTP ${response.status}` };
-    }
-    const holds = (await response.json()) as unknown;
-    return { configured: true, holds: Array.isArray(holds) ? holds : [], reason: null };
-  } catch (error) {
-    return { configured: true, holds: [], reason: `gateway unreachable: ${(error as Error).message}` };
-  }
+  const holds = ledgerList();
+  return { configured: true, holds, reason: null };
 }

@@ -31,6 +31,25 @@ broadcast of a composite whose post-state is bad **reverts atomically on-chain**
 that is the "state moves between simulate and inclusion" mitigation, demonstrated
 against the live bytecode.
 
+## 1b. On-chain rows — the guard the website uses
+
+Environment: same fork procedure; guard `0x94FB7677358c44BB0617029a3162108Ae3aa557a`,
+position `0xE1Ee5dB5Cf1f07ef9e1E361A09d5d9A6BEBe8FeE` (collateralised: HF =
+collateral·LTV/debt), executor `0x1776d4d751d97c85845bf54e6ce364cec62d4bbf` — the
+deployment's KeeperHub wallet. Reproduce with `scripts/chaos-fork-current.sh`.
+
+| # | Failure induced | What the system did | Evidence |
+| --- | --- | --- | --- |
+| 1b.1 | Safe rebalance (repay 4.35 ETH, HF 1.38 → 1.5) | Permitted; broadcast mined | live mainnet tx `0x830860d0e8f5899ed38cdf64` status 1 (block 11476467) — this is the keeper's own `live-keeper-8` submit; `cast call` on the fork returns success shape |
+| 1b.2 | Unsafe borrow 50 ETH (HF → 0.719) | **Refused atomically**; position untouched afterwards | fork: mined tx status 0; post-check `getUserAccountData` → collateral 100e18, debt 50e18, HF 1.5 unchanged; live probe of the same shape: `NOYEET/1:INV:0:1153846153846153846:1400000000000000000` |
+| 1b.3 | Caller not an executor | Refused: `NOYEET/1:NOT_EXECUTOR` | `cast call --from 0x…BAD` -> revert with reason |
+| 1b.4 | Keeper proposes a borrow below the floor | Refused; the guard's floor wins over the keeper's proposal | live keeper log: `tick N: … DENIED by the guard` (pre-repay run); the repay proposal was the one permitted |
+
+The headline: the keeper that is *supposed* to rebalance cannot override the guard.
+Borrow-only "rebalance" proposals were denied every tick (they would lower the HF
+further); the repay-based proposal was allowed and mined. The guard, not the keeper,
+is the last word.
+
 ## 2. Client rows (proven by test, KeeperHub adapter)
 
 | # | Failure induced | Behavior | Test |

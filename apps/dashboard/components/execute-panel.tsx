@@ -13,6 +13,7 @@ interface ExecuteResponse {
   readonly live: boolean;
   readonly reason?: string;
   readonly intentId?: string;
+  readonly holdId?: string;
   readonly verdict?: "ALLOW" | "HOLD" | "DENY";
   readonly reasons?: readonly { code: string; severity: string; message: string }[];
   readonly simulation?: {
@@ -34,6 +35,7 @@ type State =
 
 export function ExecutePanel(): ReactNode {
   const [amount, setAmount] = useState("0.1");
+  const [value, setValue] = useState("");
   const [state, setState] = useState<State>({ kind: "idle" });
 
   const submit = (event: FormEvent) => {
@@ -42,7 +44,7 @@ export function ExecutePanel(): ReactNode {
     fetch("/api/execute", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ amountEth: amount }),
+      body: JSON.stringify({ amountEth: amount, ...(value.trim() === "" ? {} : { valueEth: value }) }),
       cache: "no-store",
     })
       .then((response) => response.json() as Promise<ExecuteResponse>)
@@ -75,7 +77,31 @@ export function ExecutePanel(): ReactNode {
               />
             </div>
             <p className="mt-1.5 font-mono text-[11px] text-muted-foreground">
-              wrapped in executeGuarded with the HF ≥ floor invariant, then simulated live
+              borrows against the live position; the guard asserts HF ≥ floor after
+            </p>
+          </div>
+
+          <div className="flex-1">
+            <label htmlFor="value" className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+              native value (ETH, optional)
+            </label>
+            <div className="mt-2 flex items-center rounded-xl border border-border/70 bg-background px-4 focus-within:ring-2 focus-within:ring-accent">
+              <input
+                id="value"
+                type="text"
+                inputMode="decimal"
+                value={value}
+                onChange={(event) => {
+                  setValue(event.target.value);
+                  setState({ kind: "idle" });
+                }}
+                placeholder="0.012 — sends value, triggers HOLD"
+                className="w-full bg-transparent py-3 font-mono text-lg outline-none"
+              />
+            </div>
+            <p className="mt-1.5 font-mono text-[11px] text-muted-foreground">
+              at or above the policy's hold threshold (0.01 ETH) the intent is held for a
+              human instead of executing
             </p>
           </div>
 
@@ -146,6 +172,11 @@ export function ExecutePanel(): ReactNode {
                   <span className="rounded-full border border-border/70 px-3 py-1 font-mono text-xs">
                     executionId {payload.execution.executionId}
                   </span>
+                ) : null}
+                {payload.holdId ? (
+                  <a href="/holds" className="rounded-full border border-amber-500/30 bg-amber-500/5 px-3 py-1 font-mono text-xs text-amber-600">
+                    {payload.holdId} — held, open /holds
+                  </a>
                 ) : null}
                 {payload.simulation?.gasEstimate ? (
                   <span className="rounded-full border border-border/70 px-3 py-1 font-mono text-xs">

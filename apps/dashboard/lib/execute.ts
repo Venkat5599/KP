@@ -20,6 +20,7 @@ import {
 } from "@noyeet/receipts";
 import { loadConfig } from "./env";
 import { GUARD_ABI, borrowMore, probeCalldata } from "./probe";
+import { createHold } from "./holds-ledger";
 
 export interface ExecutePayload {
   readonly live: boolean;
@@ -33,6 +34,19 @@ export interface ExecutePayload {
     readonly revertReason?: string;
   } | null;
   readonly execution?: { readonly executionId: string } | null;
+  readonly holdId?: string;
+  readonly heldIntent?: {
+    readonly intentId: string;
+    readonly chainId: number;
+    readonly calls: readonly { target: string; value: string; data: string }[];
+    readonly invariants: readonly {
+      target: string;
+      probe: string;
+      word: number;
+      op: string;
+      threshold: string;
+    }[];
+  };
   readonly digest?: string;
   readonly executor?: { readonly wallet: string; readonly registered: boolean } | null;
   readonly at: string;
@@ -47,7 +61,7 @@ function policyFromConfig(config: ReturnType<typeof loadConfig>): string {
     chains: [config.chainId],
     targets: {
       allow: [target],
-      selectors: { [target]: ["0x9d0bf2e9"] },
+      selectors: { [target]: ["0x9d0bf2e9", "0x371fd8e6"] },
     },
     limits: {
       maxNativeValuePerIntent: "1000000000000000000",
@@ -56,15 +70,16 @@ function policyFromConfig(config: ReturnType<typeof loadConfig>): string {
       maxIntentsPerWindow: 5,
       maxGas: "1500000",
     },
-    holdAbove: { nativeValue: "500000000000000000", unknownCounterparty: false },
+    holdAbove: { nativeValue: "10000000000000000", unknownCounterparty: false },
     approvals: { maxApproval: "1000000000" },
     minInvariants: 1,
   });
 }
 
-function buildIntent(
+export function buildIntent(
   config: ReturnType<typeof loadConfig>,
   amountWei: bigint,
+  valueWei: bigint = 0n,
 ): Intent {
   return {
     id: `int_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
@@ -72,7 +87,7 @@ function buildIntent(
     calls: [
       {
         target: config.targetAddress as Hex,
-        value: "0",
+        value: valueWei.toString(),
         data: borrowMore(amountWei) as Hex,
       },
     ],
@@ -162,12 +177,13 @@ async function executorInfo(
 }
 
 /** Run one intent end to end. Fail-closed: missing key/config returns a clean reason. */
-export async function runExecute(amountWei: bigint): Promise<ExecutePayload> {
+export async function runExecute(
+  amountWei: bigint,
+  valueWei: bigint = 0n,
+  options: { broadcast?: boolean } = {},
+): Promise<ExecutePayload> {
   const config = loadConfig();
-  const apiKey = process.env["KEEPERHUB_API_KEY"];
-  const baseUrl = process.env["KEEPERHUB_BASE_URL"] ?? "https://app.keeperhub.com";
-
-  if (!apiKey) {
+  if (process.env["KEEPERHUB_API_KEY"] === undefined || process.env["KEEPERHUB_API_KEY"] === "") {
     return { live: false, reason: "KEEPERHUB_API_KEY is not set on this deployment.", at: new Date().toISOString() };
   }
   if (config.guardAddress === "" || config.targetAddress === "" || config.healthFactorFloor === "") {
@@ -177,9 +193,23 @@ export async function runExecute(amountWei: bigint): Promise<ExecutePayload> {
       at: new Date().toISOString(),
     };
   }
+  return runIntent(buildIntent(config, amountWei, valueWei), config, options);
+}
+
+/**
+ * Run a caller-supplied intent through the same pipeline — the gateway surface
+ * (/v1/execute accepts { intent, idempotencyKey }), so agents and the keeper submit
+ * full intents and get the same verdicts the dapp's form produces.
+ */
+export async function runIntent(
+  intent: Intent,
+  config: ReturnType<typeof loadConfig> = loadConfig(),
+  options: { broadcast?: boolean } = {},
+): Promise<ExecutePayload> {
+  const apiKey = process.env["KEEPERHUB_API_KEY"] ?? "";
+  const baseUrl = process.env["KEEPERHUB_BASE_URL"] ?? "https://app.keeperhub.com";
 
   try {
-    const intent = buildIntent(config, amountWei);
     const policy = parsePolicy(JSON.parse(process.env["NOYEET_POLICY"] ?? policyFromConfig(config)) as unknown);
     const context: EvalContext = { now: new Date(), history: [], knownCounterparties: [] };
     const decision = evaluate(intent, policy, context);
@@ -190,7 +220,7 @@ export async function runExecute(amountWei: bigint): Promise<ExecutePayload> {
     }));
 
     if (decision.verdict !== "ALLOW") {
-      const receipt: Receipt = {
+      const digest = receiptDigest({
         intentId: intent.id,
         intentHash: hashIntent(intent),
         policyHash: policyHash(process.env["NOYEET_POLICY"] ?? policyFromConfig(config)),
@@ -201,7 +231,50 @@ export async function runExecute(amountWei: bigint): Promise<ExecutePayload> {
         simulation: null,
         execution: null,
         at: intent.submittedAt,
-      };
+      });
+
+      if (decision.verdict === "HOLD") {
+        // The human gate. Nothing is broadcast while held; release and cancel live
+        // at /v1/holds/:id.
+        const hold = createHold({
+          holdId: `hold_${intent.id.slice(4)}`,
+          intentId: intent.id,
+          verdict: "HOLD",
+          reasons,
+          digest,
+          intent: {
+            intentId: intent.id,
+            chainId: intent.chainId,
+            calls: intent.calls.map((call) => ({
+              target: call.target,
+              value: call.value,
+              data: call.data,
+            })),
+            invariants: intent.invariants.map((inv) => ({
+              target: inv.target,
+              probe: inv.probe,
+              word: inv.word,
+              op: inv.op,
+              threshold: inv.threshold,
+            })),
+          },
+          at: new Date().toISOString(),
+        });
+        return {
+          live: true,
+          intentId: intent.id,
+          verdict: "HOLD",
+          reasons,
+          simulation: null,
+          execution: null,
+          holdId: hold.holdId,
+          heldIntent: hold.intent,
+          digest,
+          executor: await executorInfo(apiKey, baseUrl, config),
+          at: new Date().toISOString(),
+        };
+      }
+
       return {
         live: true,
         intentId: intent.id,
@@ -209,7 +282,7 @@ export async function runExecute(amountWei: bigint): Promise<ExecutePayload> {
         reasons,
         simulation: null,
         execution: null,
-        digest: receiptDigest(receipt),
+        digest,
         executor: await executorInfo(apiKey, baseUrl, config),
         at: new Date().toISOString(),
       };
@@ -288,7 +361,36 @@ export async function runExecute(amountWei: bigint): Promise<ExecutePayload> {
       };
     }
 
-    // Clean simulation: broadcast the identical composite under an idempotency key.
+    // Clean simulation: broadcast the identical composite under an idempotency key,
+    // unless the caller asked for authorize-only (no broadcast).
+    if (options.broadcast === false) {
+      return {
+        live: true,
+        intentId: intent.id,
+        verdict: "ALLOW",
+        reasons,
+        simulation: {
+          wouldRevert: false,
+          gasEstimate: simulation.gasEstimate ?? "0",
+        },
+        execution: null,
+        digest: receiptDigest({
+          intentId: intent.id,
+          intentHash: hashIntent(intent),
+          policyHash: policyHash(process.env["NOYEET_POLICY"] ?? policyFromConfig(config)),
+          guard: config.guardAddress as Hex,
+          chainId: intent.chainId,
+          verdict: "ALLOW",
+          reasons,
+          simulation: { wouldRevert: false, gasEstimate: simulation.gasEstimate ?? "0" },
+          execution: null,
+          at: intent.submittedAt,
+        }),
+        executor: await executorInfo(apiKey, baseUrl, config),
+        at: new Date().toISOString(),
+      };
+    }
+
     const idempotencyKey = `noyeet-dapp-${intent.id}`;
     // The broadcast path requires canonical object-form tuples; array-form tuples are
     // rejected with "expected object for tuple". Simulate accepts both.
@@ -358,6 +460,60 @@ export async function runExecute(amountWei: bigint): Promise<ExecutePayload> {
       at: new Date().toISOString(),
     };
   }
+}
+
+/**
+ * Broadcast a stored intent (used by hold release). Object-form tuples, idempotency
+ * keyed on the intent, so a released hold can never double-broadcast.
+ */
+export async function broadcastIntent(intent: {
+  readonly chainId: number;
+  readonly calls: readonly { target: string; value: string; data: string }[];
+  readonly invariants: readonly {
+    target: string;
+    probe: string;
+    word: number;
+    op: string;
+    threshold: string;
+  }[];
+  readonly intentId: string;
+}): Promise<{ executionId: string }> {
+  const config = loadConfig();
+  const apiKey = process.env["KEEPERHUB_API_KEY"];
+  if (!apiKey) throw new Error("KEEPERHUB_API_KEY is not set on this deployment.");
+  const baseUrl = process.env["KEEPERHUB_BASE_URL"] ?? "https://app.keeperhub.com";
+
+  const response = await fetch(`${baseUrl}/api/execute/contract-call`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json",
+      "idempotency-key": `noyeet-hold-release-${intent.intentId}`,
+    },
+    body: JSON.stringify({
+      chainId: intent.chainId,
+      contractAddress: config.guardAddress,
+      functionName: "executeGuarded",
+      abi: GUARD_ABI,
+      functionArgs: JSON.stringify([
+        intent.calls.map((call) => ({ target: call.target, value: call.value, data: call.data })),
+        intent.invariants.map((inv) => ({
+          target: inv.target,
+          probe: inv.probe,
+          word: inv.word,
+          op: ["GTE", "LTE", "EQ", "REL_DEC_MAX", "REL_INC_MAX"].indexOf(inv.op),
+          threshold: inv.threshold,
+        })),
+      ]),
+    }),
+    cache: "no-store",
+  });
+  const payload = (await response.json()) as { executionId?: string; error?: string };
+  const executionId = payload.executionId;
+  if (executionId === undefined || executionId === "") {
+    throw new Error(payload.error ?? "the broadcast was not accepted");
+  }
+  return { executionId };
 }
 
 /** Format a wei amount as ETH with up to 4 decimals. */

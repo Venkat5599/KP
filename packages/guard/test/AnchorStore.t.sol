@@ -101,4 +101,33 @@ contract AnchorStoreTest is Test {
         bytes32[] memory proof = new bytes32[](0);
         assertFalse(store.verify(99, keccak256("x"), proof, 0));
     }
+
+    function test_setAdmin_rotates() public {
+        vm.prank(admin);
+        store.setAdmin(stranger);
+        assertEq(store.admin(), stranger);
+    }
+
+    function test_setAdmin_old_admin_cannot_anchor_after_rotation() public {
+        vm.prank(admin);
+        store.setAdmin(stranger);
+        vm.prank(admin);
+        vm.expectRevert(bytes("NOYEET/1:NOT_ADMIN"));
+        store.anchor(99, bytes32(uint256(1)), policy);
+    }
+
+    function test_setAdmin_new_admin_can_anchor() public {
+        vm.prank(admin);
+        store.setAdmin(stranger);
+        vm.prank(stranger);
+        store.anchor(99, keccak256("r"), policy);
+        (bytes32 stored,,) = store.anchors(99);
+        assertEq(stored, keccak256("r"));
+    }
+
+    function test_setAdmin_rejects_zero() public {
+        vm.prank(admin);
+        vm.expectRevert(bytes("NOYEET/1:NOT_ADMIN"));
+        store.setAdmin(address(0));
+    }
 }

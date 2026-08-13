@@ -25,7 +25,7 @@ function deployedPolicy(config: ReturnType<typeof loadConfig>): string {
     chains: [config.chainId],
     targets: {
       allow: [target],
-      selectors: { [target]: ["0x9d0bf2e9"] },
+      selectors: { [target]: ["0x9d0bf2e9", "0x371fd8e6"] },
     },
     limits: {
       maxNativeValuePerIntent: "1000000000000000000",
@@ -34,7 +34,7 @@ function deployedPolicy(config: ReturnType<typeof loadConfig>): string {
       maxIntentsPerWindow: 5,
       maxGas: "1500000",
     },
-    holdAbove: { nativeValue: "500000000000000000", unknownCounterparty: false },
+    holdAbove: { nativeValue: "10000000000000000", unknownCounterparty: false },
     approvals: { maxApproval: "1000000000" },
     minInvariants: 1,
   });

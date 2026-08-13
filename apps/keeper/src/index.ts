@@ -41,8 +41,12 @@ function config(): KeeperConfig {
 
 const GET_USER_ACCOUNT_DATA = "0xbf92857c";
 
-/** Live eth_call to the position contract; the keeper never caches chain state. */
-async function readHealthFactorWei(target: string, guard: string): Promise<bigint> {
+/**
+ * Live eth_call to the position contract; the keeper never caches chain state.
+ * getUserAccountData returns six words: collateral (0), debt (1), …, health
+ * factor (5). One read, three values.
+ */
+async function readPosition(target: string, guard: string): Promise<{ healthFactorWei: bigint; collateralWei: bigint; debtWei: bigint }> {
   const rpc = requireEnv("KEEPER_RPC_URL");
   const response = await fetch(rpc, {
     method: "POST",
@@ -60,9 +64,9 @@ async function readHealthFactorWei(target: string, guard: string): Promise<bigin
   if (!response.ok) throw new Error(`RPC HTTP ${response.status}`);
   const payload = (await response.json()) as { result?: string; error?: { message?: string } };
   if (payload.error) throw new Error(`RPC: ${payload.error.message ?? "error"}`);
-  // getUserAccountData returns six words; health factor is word 5 (offset 160 bytes).
-  const word = `0x${(payload.result ?? "0x").slice(2 + 160, 2 + 192)}`;
-  return BigInt(word);
+  const raw = (payload.result ?? "0x").slice(2);
+  const word = (index: number) => BigInt(`0x${raw.slice(index * 64, (index + 1) * 64)}`);
+  return { collateralWei: word(0), debtWei: word(1), healthFactorWei: word(5) };
 }
 
 async function submit(intent: Intent): Promise<"submitted" | "held" | "denied"> {
@@ -92,7 +96,7 @@ async function main(): Promise<void> {
   const cfg = config();
   const gateway = requireEnv("GATEWAY_URL");
   const deps: KeeperDeps = {
-    readHealthFactorWei: () => readHealthFactorWei(cfg.target, cfg.guard),
+    readPosition: () => readPosition(cfg.target, cfg.guard),
     submit,
     now: () => new Date(),
   };

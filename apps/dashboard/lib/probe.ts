@@ -70,11 +70,50 @@ export function probeCalldata(guardAddress: string): string {
   return `0xbf92857c${guardAddress.slice(2).toLowerCase().padStart(64, "0")}`;
 }
 
+const LTV_BPS = 7500n; // the pool's liquidation threshold, same as the invariant math
+
+/**
+ * Read the borrower's live position (collateral, debt) from the pool and project the
+ * health factor after a borrow of `amountWei` — HF = collateral * LTV / (debt + amount).
+ * The projection uses on-chain state plus the proposed delta; the simulation is what
+ * the guard actually asserts.
+ */
+async function projectHealthFactor(
+  rpcUrl: string,
+  poolAddress: string,
+  borrower: string,
+  amountWei: bigint,
+): Promise<{ collateral: bigint; debt: bigint; resultingHealthFactor: bigint }> {
+  const response = await fetch(rpcUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "eth_call",
+      params: [
+        { to: poolAddress, data: `0x55f57510${borrower.slice(2).toLowerCase().padStart(64, "0")}` },
+        "latest",
+      ],
+    }),
+    cache: "no-store",
+  });
+  const payload = (await response.json()) as { result?: string };
+  const raw = payload.result ?? "0x";
+  const collateral = BigInt(raw === "0x" ? "0x0" : `0x${raw.slice(2, 66)}`);
+  const debt = BigInt(raw === "0x" ? "0x0" : `0x${raw.slice(66, 130)}`);
+  const nextDebt = debt + amountWei;
+  const resultingHealthFactor =
+    nextDebt === 0n ? 0n : ((collateral * LTV_BPS) / 10000n) * 1_000_000_000_000_000_000n / nextDebt;
+  return { collateral, debt, resultingHealthFactor };
+}
+
 async function simulate(
   apiKey: string,
   baseUrl: string,
   config: ReturnType<typeof loadConfig>,
   label: string,
+  amountWei: bigint,
   resultingHealthFactor: bigint,
 ): Promise<ProbeResult> {
   const body = {
@@ -83,7 +122,7 @@ async function simulate(
     functionName: "executeGuarded",
     abi: GUARD_ABI,
     functionArgs: JSON.stringify([
-      [[config.targetAddress, "0", borrowMore(resultingHealthFactor)]],
+      [[config.targetAddress, "0", borrowMore(amountWei)]],
       [[config.targetAddress, probeCalldata(config.guardAddress), 5, 0, config.healthFactorFloor]],
     ]),
     simulate: true,
@@ -141,13 +180,34 @@ export async function runProbe(): Promise<ProbePayload> {
   }
 
   try {
-    const floor = BigInt(config.healthFactorFloor);
-    const above = (floor * 11n) / 10n;
-    const below = (floor * 8n) / 10n;
+    // Two real borrows against the live position: a small one that keeps the health
+    // factor above the floor, and a large one that breaks it. The projected HF comes
+    // from on-chain state plus the delta; the simulation is the guard's verdict.
+    const smallBorrow = 500_000_000_000_000_000n; // 0.5 ETH
+    const largeBorrow = 15_000_000_000_000_000_000n; // 15 ETH
+
+    const [small, large] = await Promise.all([
+      projectHealthFactor(config.rpcUrl, config.targetAddress, config.guardAddress, smallBorrow),
+      projectHealthFactor(config.rpcUrl, config.targetAddress, config.guardAddress, largeBorrow),
+    ]);
 
     const [allowed, refused] = await Promise.all([
-      simulate(apiKey, baseUrl, config, `Rebalance to ${above}`, above),
-      simulate(apiKey, baseUrl, config, `Rebalance to ${below}`, below),
+      simulate(
+        apiKey,
+        baseUrl,
+        config,
+        `Borrow 0.5 ETH, HF ${(Number(small.resultingHealthFactor) / 1e18).toFixed(4)}`,
+        smallBorrow,
+        small.resultingHealthFactor,
+      ),
+      simulate(
+        apiKey,
+        baseUrl,
+        config,
+        `Borrow 15 ETH, HF ${(Number(large.resultingHealthFactor) / 1e18).toFixed(4)}`,
+        largeBorrow,
+        large.resultingHealthFactor,
+      ),
     ]);
 
     return {

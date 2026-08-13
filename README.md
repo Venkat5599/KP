@@ -4,7 +4,7 @@
 
 **Your agent can't yeet your money.**
 
-![Live demo](https://img.shields.io/badge/live-dashboard--nu--two--93.vercel.app-3C5A54) ![Tests](https://img.shields.io/badge/tests-194%20passing-2F6B4F) ![License](https://img.shields.io/badge/license-MIT-9E3D33) ![Stack](https://img.shields.io/badge/stack-Solidity%20·%20TypeScript%20·%20Foundry-3C5A54)
+![Live demo](https://img.shields.io/badge/live-dashboard--nu--two--93.vercel.app-3C5A54) ![Tests](https://img.shields.io/badge/tests-203%20passing-2F6B4F) ![License](https://img.shields.io/badge/license-MIT-9E3D33) ![Stack](https://img.shields.io/badge/stack-Solidity%20·%20TypeScript%20·%20Foundry-3C5A54)
 
 Agents do not get keys. They get permits, decided by what the chain says will happen and enforced atomically when it does.
 
@@ -48,9 +48,9 @@ curl https://dashboard-nu-two-93-six.vercel.app/api/probe
 ```json
 {"live":true,"guard":"0x94FB7677358c44BB0617029a3162108Ae3aa557a","floor":"1400000000000000000",
  "results":[
-  {"label":"Rebalance to 1540000000000000000","resultingHealthFactor":"1540000000000000000","verdict":"ALLOW","httpStatus":200,"failureKind":null,"revertReason":null,"gasEstimate":"50792"},
-  {"label":"Rebalance to 1120000000000000000","resultingHealthFactor":"1120000000000000000","verdict":"DENY","httpStatus":400,"failureKind":"revert","revertReason":"Error(NOYEET/1:INV:0:1120000000000000000:1400000000000000000)","gasEstimate":null}],
- "at":"2026-08-12T21:45:00.000Z"}
+  {"label":"Borrow 0.5 ETH, HF 1.4851","resultingHealthFactor":"1485100000000000000","verdict":"ALLOW","httpStatus":200,"failureKind":null,"revertReason":null,"gasEstimate":"56021"},
+  {"label":"Borrow 15 ETH, HF 1.1538","resultingHealthFactor":"1153846153846153846","verdict":"DENY","httpStatus":400,"failureKind":"revert","revertReason":"Error(NOYEET/1:INV:0:1153846153846153846:1400000000000000000)","gasEstimate":null}],
+ "at":"2026-08-12T23:50:00.000Z"}
 ```
 
 Both calls hit the same contract through the same function with the same argument type. Only the state they would produce differs. The first is permitted and broadcasts (real examples in [Transactions](#transactions)); the second is refused and the refusal names the violated invariant by index, with the observed and required values. Output quoted from the live endpoint.
@@ -97,7 +97,7 @@ for (uint256 i; i < inv.length; ++i) _assert(inv[i]);     // PROBE_FAILED / PROB
 
 Prediction and enforcement are the same code path. There is no separate check mode that can drift from the enforcement path, which is a class of bug this design cannot have.
 
-This was demonstrated against the deployed Sepolia guard on a chain fork: broadcasting the unsafe composite mined with `status 0` and reverted `NOYEET/1:INV:0:1120000000000000000:1400000000000000000`, with the health factor left unchanged afterwards. Reproduce with `scripts/chaos-fork.sh`; full write-up in [docs/chaos-report.md](docs/chaos-report.md).
+This was demonstrated twice, once per live guard, on a chain fork: broadcasting the unsafe composite mined with `status 0` and reverted `NOYEET/1:INV:0:…:1400000000000000000`, with the health factor left unchanged afterwards. Reproduce with `scripts/chaos-fork.sh` (original guard) or `scripts/chaos-fork-current.sh` (the guard the website uses); full write-up in [docs/chaos-report.md](docs/chaos-report.md).
 
 ### Verdicts
 
@@ -132,15 +132,15 @@ chain
 
 | Component | Technology | Responsibility |
 | --- | --- | --- |
-| `packages/guard` | Solidity 0.8.26, Foundry | `NoYeetGuard.sol` (execute, then assert), `AnchorStore.sol` (append-only receipt roots), `PositionPool.sol` (the demo target the invariant reads). Invariant fuzzing, 30 tests |
+| `packages/guard` | Solidity 0.8.26, Foundry | `NoYeetGuard.sol` (execute, then assert), `AnchorStore.sol` (append-only receipt roots, admin-rotatable), `PositionPool.sol` (collateralised demo target: borrowMore, repay, HF = collateral·LTV/debt). Invariant fuzzing, 38 tests |
 | `packages/policy` | TypeScript | Pure decision engine: 12 rules, three verdicts, zero I/O (CI-enforced) |
 | `packages/keeperhub` | TypeScript | Typed adapter over KeeperHub's REST API: idempotency keys, retry with jitter, 429/cold-start semantics, per-wallet send serialization, `failureKind` discrimination |
 | `packages/receipts` | TypeScript | RFC 8785 canonicalization, keccak256, sorted-pair Merkle trees, hourly anchor batches |
 | `packages/store` | TypeScript | Receipt store: Postgres when `DATABASE_URL` is set, in-memory fallback |
 | `packages/observability` | TypeScript | Prometheus metrics collection |
-| `apps/gateway` | Hono | Authorization pipeline composing policy, simulation, receipts; `POST /v1/authorize`, `POST /v1/execute`, `POST /v1/holds` (+ release/cancel), `POST /v1/verify`, `GET /v1/executions/:id`, `GET /healthz` |
-| `apps/dashboard` | Next.js | Dapp shell: `/` execute (policy → simulate → broadcast), `/policy` n8n-style drag-and-drop policy canvas, `/overview`, `/guard`, `/verdicts`, `/transactions`, `/holds`, `/verifier`, `/operations` (observability) + `/api/execute`, `/api/probe`, `/api/health`, `/api/metrics`, `/api/transactions`, `/api/holds` |
-| `apps/keeper` | TypeScript | Continuous guarded executor: RPC position read -> intent -> gateway submit |
+| `apps/gateway` | Hono | Authorization pipeline composing policy, simulation, receipts; `POST /v1/authorize`, `POST /v1/execute` (dapp form or full intent), `POST /v1/holds` (+ release/cancel — release broadcasts the held composite idempotency-keyed), `POST /v1/verify`, `GET /v1/executions/:id`, `GET /healthz`. Deployed live as part of the dashboard deployment — `/v1/*` answers on the live URL |
+| `apps/dashboard` | Next.js | Dapp shell: `/` execute (policy → simulate → broadcast; value ≥ hold threshold escalates to HOLD), `/policy` n8n-style drag-and-drop policy canvas, `/overview`, `/guard`, `/verdicts`, `/transactions`, `/holds` (release/cancel buttons), `/verifier`, `/operations` (observability) + `/api/execute`, `/api/probe`, `/api/health`, `/api/metrics`, `/api/transactions`, `/api/holds`, `/healthz`, `/readyz` and the gateway surface `/v1/*` |
+| `apps/keeper` | TypeScript | Continuous guarded executor: live RPC position read (collateral/debt/HF in one call) -> below the floor it proposes the repay that restores the target HF -> gateway submit; the guard still enforces |
 | `apps/verifier` | Static HTML + bundled TS | Stateless receipt digest verifier, opens from `file://` |
 | `apps/anchor` | TypeScript | Kafka anchoring consumer: reads decision digests off the log, Merkle-roots each batch, flushes on size or age |
 | `infra/observability` | Docker Compose | Prometheus + Grafana (provisioned) + Redpanda (Kafka) + OTel collector + Tempo + Alertmanager |
@@ -161,15 +161,14 @@ chain
 | --- | --- | --- |
 | Guard on Sepolia (in use) | Yes | `0x94FB7677358c44BB0617029a3162108Ae3aa557a`, deployed with executor = the deployment key's KeeperHub wallet `0x1776d4d7…` (verified on chain); fuzzed (1024 runs) |
 | Original guard (history) | Yes | `0x4Bd0501fb1c0dEecaCD3efd50340Cd82Bb8E7F0f`, executor `0x5Fe224…DD582`; the guard the chaos-fork proofs were mined against |
-| ALLOW / DENY on the live API | Yes | `/api/probe` returns the real pair (quoted above); an ALLOW broadcast from the website completed on chain — [0xc2c8debc…](https://sepolia.etherscan.io/tx/0xc2c8debc1c8eb62600f57d62b6d53af623203b767e55cd8c71ad60cfbb1d3260) |
-| ALLOW / DENY on the live API | Yes | `/api/probe` runs both simulations per request against the live KeeperHub API |
-| On-chain enforcement | Yes | Proven on a fork of Sepolia: safe composite mined status 1; unsafe composite reverted `INV:0:1120…:1400…` with state unchanged (`scripts/chaos-fork.sh`) |
+| ALLOW / DENY on the live API | Yes | `/api/probe` returns the real pair (quoted above) with the projected health factor computed from the live position; broadcasts from the website completed on chain — [0xc2c8debc…](https://sepolia.etherscan.io/tx/0xc2c8debc1c8eb62600f57d62b6d53af623203b767e55cd8c71ad60cfbb1d3260), [0x830860d0…](https://sepolia.etherscan.io/tx/0x830860d0e8f5899ed38cdf64) |
+| On-chain enforcement (current guard) | Yes | `scripts/chaos-fork-current.sh`: unsafe composite refused on a Sepolia fork with state unchanged; the keeper's safe repay is live-mined [0x830860d0…](https://sepolia.etherscan.io/tx/0x830860d0e8f5899ed38cdf64) (status 1) |
 | Policy VM: 12 rules, three verdicts | Yes | Purity-gated in CI |
-| HOLD path | Yes | Gateway hold ledger + Discord/Telegram notification (env-gated); release/cancel via API. Tempo-style signing is **not** integrated — the hold is held by the gateway, not by Tempo |
+| HOLD path (live) | Yes | Value at or above the policy's hold threshold escalates to HOLD; the intent is stored (in-process ledger — serverless instances are honest about not sharing it) and nothing is broadcast. `POST /v1/holds/:id/release` broadcasts the held composite (idempotency-keyed — no double broadcast), `…/cancel` resolves without broadcasting. Live example: release broadcast [0x8a49377e…](https://sepolia.etherscan.io/tx/0x8a49377e9345d65aaff341f27c7564b36aaa630cf4d81bae325b5c33d30e5d3e) |
 | Receipts: canonical digest + Merkle batches | Yes | 37 tests; digest consistency with the static verifier pinned by test |
-| On-chain receipt anchoring | Partial | `AnchorStore.sol` deployed on Sepolia at `0x3Dc29f2C35f2840D9c7503c66dD3d0Cd468c4f6b` (admin = KeeperHub wallet, verified on chain, [tx](https://sepolia.etherscan.io/tx/0x2fd94339127ff68e7eec025d2d5aad0793ce00f74b2c5080a716c6345c706ae4)); first anchor pending — `admin` is immutable and set to the original key's wallet `0x5Fe224…`, so an anchor must be signed by that original key (or the contract needs admin rotation) and needs a receipt store (`DATABASE_URL`) |
-| Policy-hash commitment on chain | Partial | `anchor(batchId, root, policyHash)` binds the policy in force per batch (tested, incl. conflict on mismatch); the deployed AnchorStore is ready — first anchor commits both |
-| Keeper running continuously | Partial | `apps/keeper` ready; a live run needs the same executor registration above (the org key is in place) |
+| On-chain receipt anchoring | Yes | `AnchorStore` with admin rotation deployed at `0xBeD92c60F0aCCB307cFc9B5c646B7AF75Be73dC2` (admin = the deployment wallet `0x1776d4d7…`). **First anchor live**: batch 496270, root `0xc3b58fcf…` + policy hash committed in [0xec582aca…](https://sepolia.etherscan.io/tx/0xec582aca989ddaae8c8b23944ca756b1ba9fba414ec9bb779d58bb787f1eb4) (block 11476070), verified against `anchors(496270)` |
+| Policy-hash commitment on chain | Yes | The first anchor committed both the batch root and the policy hash of the policy in force at the time |
+| Keeper running continuously | Yes | `apps/keeper` runs live against the deployed gateway: position read (one eth_call) → below the floor it proposes a repay → the guard asserts → broadcast. Live log: `tick 8: submitted live-keeper-8`, mined [0x830860d0…](https://sepolia.etherscan.io/tx/0x830860d0e8f5899ed38cdf64) (status 1). Refused proposals are logged as DENIED — the guard's floor wins |
 | Marketplace workflow `noyeet/verify` | Partial | Definition + import README ready; the paid listing needs the org account |
 | `failureKind` discrimination | Yes | `"validation"` never reported as an invariant breach (tested) |
 | Oracle median-of-three feeds | No | Not built. The guard probes the live target directly; a multi-feed design is roadmap |
@@ -186,17 +185,24 @@ chain
 | Position seeded to HF 1.2 for the live guard | [`0x48f6e23f…283`](https://sepolia.etherscan.io/tx/0x48f6e23fbbf5efa60ab7ee8d9e2059dc564eb962a4c1c4baeb7af6701a27c283) |
 | Guarded broadcast, direct pipeline (execution id `oakjghexxsxcpwx4hp94q`, completed) | [`0x56b9b888…c16`](https://sepolia.etherscan.io/tx/0x56b9b888bc83ee9a50252fb6ebd6b35723a5e7ce3d1c6ce5e4ed4b240fbe7c16) |
 | Guarded broadcast via the website execute page (execution id `d7vuibil2081s4zd1j8ne`, completed) | [`0xc2c8debc…260`](https://sepolia.etherscan.io/tx/0xc2c8debc1c8eb62600f57d62b6d53af623203b767e55cd8c71ad60cfbb1d3260) |
+| AnchorStore deployment (admin = deployment wallet, rotatable) | [`0xd8cf9f65…7f40`](https://sepolia.etherscan.io/tx/0xd8cf9f65a5f01cab17cf52b529186d73c3210de06c01eb4e4b4ca53decc97f40) |
+| **First on-chain anchor** — batch 496270, root + policy hash (execution id `61hdnv2a0xdp8yi6mpzqb`, completed) | [`0xec582aca…1eb4`](https://sepolia.etherscan.io/tx/0xec582aca989ddaae8c8b23944ca756b1ba9fba414ec9bb779d58bb787f1eb4) |
+| Position v2 seeded to HF 1.6 (collateral 100 ETH, debt 46.875 ETH) | [`0x3cd81427…2f0`](https://sepolia.etherscan.io/tx/0x3cd81427412db36f75748412babe2992b33f043ef897f1ca9ce24796961ef2f0) |
+| Guard funded — value-bearing HOLD releases forward the held value | [`0xccf1119b…cb7`](https://sepolia.etherscan.io/tx/0xccf1119bd279fba38171ac4de059c649bf5d67227f54388bddefa235cca24cb7) |
+| HOLD → release broadcast — held intent released, value forwarded (execution id `g4546ves7k6wya0qinziq`, completed) | [`0x8a49377e…5d3e`](https://sepolia.etherscan.io/tx/0x8a49377e9345d65aaff341f27c7564b36aaa630cf4d81bae325b5c33d30e5d3e) |
+| Position v4 seeded below floor (HF 1.38) for the keeper's repay demo | [`0xc2631392…0e27`](https://sepolia.etherscan.io/tx/0xc2631392296f7ca79e663510c2b84ce89b3540f517a328249d72195c934a0e27) |
+| Keeper-driven repay — `live-keeper-8`, position restored to HF 1.5 (status 1) | [`0x830860d0…cdf64`](https://sepolia.etherscan.io/tx/0x830860d0e8f5899ed38cdf64) |
 
 ## Tests
 
-194 tests, zero failing: 164 TypeScript (14 files) + 30 Solidity (15 + 8 AnchorStore + 1 reentrancy + 6 PositionPool).
+203 tests, zero failing: 165 TypeScript (14 files) + 38 Solidity (15 guard + 12 AnchorStore + 1 reentrancy + 10 PositionPool).
 
 ```bash
 bun test packages apps templates
 ```
 
 ```
-Ran 164 tests across 14 files. [4.13s]
+Ran 165 tests across 14 files. [5.25s]
  0 fail
  878 expect() calls
 ```
@@ -209,7 +215,7 @@ cd packages/guard && forge test --summary
 Suite result: ok. 15 passed; 0 failed; 0 skipped
 Suite result: ok. 8 passed; 0 failed; 0 skipped   (AnchorStore)
 Suite result: ok. 1 passed; 0 failed; 0 skipped   (reentrancy)
-Suite result: ok. 6 passed; 0 failed; 0 skipped   (PositionPool)
+Suite result: ok. 10 passed; 0 failed; 0 skipped   (PositionPool: accounting, borrowMore payable, repay)
 ```
 
 CI (`.github/workflows/ci.yml`) runs typecheck across all packages/apps/templates, the full test suite, the purity gate, and `forge fmt --check` + `forge build` + `forge test`.

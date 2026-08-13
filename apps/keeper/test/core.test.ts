@@ -1,17 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import {
-  borrowMoreCalldata,
   buildIntent,
   decide,
   probeCalldata,
+  repayCalldata,
   runOnce,
   type Intent,
+  type PositionRead,
 } from "../src/core.ts";
 
-const GUARD = "0x4Bd0501fb1c0dEecaCD3efd50340Cd82Bb8E7F0f" as const;
-const TARGET = "0x2BeaFD2Ed0D8e3831752b3243E7C5b2CA67Fdb0B" as const;
+const GUARD = "0x94FB7677358c44BB0617029a3162108Ae3aa557a" as const;
+const TARGET = "0xE1Ee5dB5Cf1f07ef9e1E361A09d5d9A6BEBe8FeE" as const;
 const FLOOR = 1_400_000_000_000_000_000n;
 const TARGET_HF = 1_500_000_000_000_000_000n;
+// collateral 100 ETH @ LTV 75% → debt at HF 1.5 is 50 ETH
+const COLLATERAL = 100_000_000_000_000_000_000n;
+const DEBT_AT_TARGET = 50_000_000_000_000_000_000n;
 
 const config = {
   chainId: 11155111,
@@ -22,24 +26,37 @@ const config = {
   idPrefix: "keeper",
 };
 
+const position = (debtWei: bigint, hfWei: bigint): PositionRead => ({
+  collateralWei: COLLATERAL,
+  debtWei,
+  healthFactorWei: hfWei,
+});
+
 describe("decide", () => {
   test("no action above the floor", () => {
-    expect(decide(2_000_000_000_000_000_000n, FLOOR, TARGET_HF)).toBeNull();
+    expect(decide(1_600_000_000_000_000_000n, DEBT_AT_TARGET, COLLATERAL, FLOOR, TARGET_HF)).toBeNull();
   });
 
   test("no action exactly at the floor", () => {
-    expect(decide(FLOOR, FLOOR, TARGET_HF)).toBeNull();
+    expect(decide(FLOOR, DEBT_AT_TARGET, COLLATERAL, FLOOR, TARGET_HF)).toBeNull();
   });
 
-  test("proposes a move when below the floor", () => {
-    expect(decide(1_120_000_000_000_000_000n, FLOOR, TARGET_HF)).toBe(TARGET_HF);
+  test("below the floor: proposes the repay that restores the target HF", () => {
+    // debt 55 ETH → HF 1.3636 < floor; restoring HF 1.5 needs debt 50 ETH → repay 5 ETH
+    const repay = decide(1_363_636_363_636_363_636n, 55_000_000_000_000_000_000n, COLLATERAL, FLOOR, TARGET_HF);
+    expect(repay).toBe(5_000_000_000_000_000_000n);
+  });
+
+  test("never proposes a negative repay", () => {
+    // pathological: debt already at/under the target — nothing to repay
+    expect(decide(1_300_000_000_000_000_000n, DEBT_AT_TARGET, COLLATERAL, FLOOR, TARGET_HF)).toBeNull();
   });
 });
 
 describe("calldata", () => {
-  test("borrowMore encodes the amount as a uint256", () => {
-    const calldata = borrowMoreCalldata(TARGET_HF);
-    expect(calldata.startsWith("0x9d0bf2e9")).toBe(true);
+  test("repay encodes the amount as a uint256", () => {
+    const calldata = repayCalldata(5_000_000_000_000_000_000n);
+    expect(calldata.startsWith("0x371fd8e6")).toBe(true);
     expect(calldata).toHaveLength(10 + 64);
   });
 
@@ -51,9 +68,10 @@ describe("calldata", () => {
 });
 
 describe("buildIntent", () => {
-  test("declares the floor as the invariant threshold", () => {
-    const intent = buildIntent(config, "keeper-1", new Date("2026-08-12T06:00:00Z"), TARGET_HF);
+  test("declares the floor as the invariant threshold and repays", () => {
+    const intent = buildIntent(config, "keeper-1", new Date("2026-08-12T06:00:00Z"), 5_000_000_000_000_000_000n);
     expect(intent.calls[0]?.target).toBe(TARGET);
+    expect(intent.calls[0]?.data).toBe(repayCalldata(5_000_000_000_000_000_000n));
     expect(intent.invariants[0]?.threshold).toBe(FLOOR.toString());
     expect(intent.invariants[0]?.op).toBe("GTE");
   });
@@ -64,7 +82,7 @@ describe("runOnce", () => {
     let submitted = 0;
     const outcome = await runOnce(
       {
-        readHealthFactorWei: async () => 2_000_000_000_000_000_000n,
+        readPosition: async () => position(DEBT_AT_TARGET, 1_500_000_000_000_000_000n),
         submit: async (intent: Intent) => {
           submitted++;
           return "submitted";
@@ -78,11 +96,11 @@ describe("runOnce", () => {
     expect(submitted).toBe(0);
   });
 
-  test("below floor: submits a guard-wrapped intent", async () => {
+  test("below floor: submits a guard-wrapped repay intent", async () => {
     const captured: Intent[] = [];
     const outcome = await runOnce(
       {
-        readHealthFactorWei: async () => 1_120_000_000_000_000_000n,
+        readPosition: async () => position(55_000_000_000_000_000_000n, 1_363_636_363_636_363_636n),
         submit: async (intent: Intent) => {
           captured.push(intent);
           return "submitted";
@@ -94,13 +112,13 @@ describe("runOnce", () => {
     );
     expect(outcome.kind).toBe("submitted");
     expect(captured[0]?.id).toBe("keeper-7");
-    expect(captured[0]?.calls[0]?.data).toBe(borrowMoreCalldata(TARGET_HF));
+    expect(captured[0]?.calls[0]?.data).toBe(repayCalldata(5_000_000_000_000_000_000n));
   });
 
   test("held intents are surfaced, not retried", async () => {
     const outcome = await runOnce(
       {
-        readHealthFactorWei: async () => 1_120_000_000_000_000_000n,
+        readPosition: async () => position(55_000_000_000_000_000_000n, 1_363_636_363_636_363_636n),
         submit: async () => "held",
         now: () => new Date(),
       },
@@ -113,7 +131,7 @@ describe("runOnce", () => {
   test("denied intents are surfaced, not retried", async () => {
     const outcome = await runOnce(
       {
-        readHealthFactorWei: async () => 1_120_000_000_000_000_000n,
+        readPosition: async () => position(55_000_000_000_000_000_000n, 1_363_636_363_636_363_636n),
         submit: async () => "denied",
         now: () => new Date(),
       },

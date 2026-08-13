@@ -10,8 +10,9 @@ pragma solidity 0.8.26;
 ///         There is no update path: a wrong root is permanent, which is the point.
 contract AnchorStore {
     event RootAnchored(uint256 indexed batchId, bytes32 root, bytes32 policyHash, uint256 blockNumber);
+    event AdminSet(address indexed previous, address indexed next);
 
-    address public immutable admin;
+    address public admin;
 
     struct Anchor {
         bytes32 root;
@@ -28,6 +29,15 @@ contract AnchorStore {
     modifier onlyAdmin() {
         if (msg.sender != admin) revert("NOYEET/1:NOT_ADMIN");
         _;
+    }
+
+    /// @notice Rotate the admin. The constructor admin is the deployer; rotation lets
+    ///         custody move to the signing wallet without a redeploy, so the org key
+    ///         can anchor even when it did not deploy the store.
+    function setAdmin(address next) external onlyAdmin {
+        if (next == address(0)) revert("NOYEET/1:NOT_ADMIN");
+        emit AdminSet(admin, next);
+        admin = next;
     }
 
     /// @notice Commit `root` as batch `batchId` together with the policy hash that
