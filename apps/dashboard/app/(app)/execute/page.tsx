@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 export const metadata: Metadata = createMetadata({
   title: "Execute",
   description: "Run an intent through the noyeet pipeline: policy, simulation, broadcast.",
-  path: "/",
+  path: "/execute",
 });
 
 export const dynamic = "force-dynamic";
