@@ -1,4 +1,3 @@
-import { CanvasToggle } from "@/components/canvas-toggle";
 import { PolicyCanvas } from "@/components/canvas/policy-canvas";
 import { loadConfig } from "@/lib/env";
 import { policyToBlocks } from "@/lib/canvas/policy-to-blocks";
@@ -173,7 +172,16 @@ export default async function PolicyPage(): Promise<ReactNode> {
         </span>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-border/70 p-5">
+      <div className="mt-4">
+        <PolicyCanvas
+          initialBlocks={initialBlocks}
+          deployedPolicyJson={policyJson}
+          initialName={initialName}
+          carryOver={carryOver}
+        />
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-border/70 p-5">
         <p className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           What this policy does
         </p>
@@ -239,21 +247,12 @@ export default async function PolicyPage(): Promise<ReactNode> {
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-border/70 p-5">
+      <div className="mt-6 rounded-2xl border border-border/70 p-5">
         <p className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           The policy document
         </p>
         <pre className="mt-3 overflow-x-auto rounded-xl bg-foreground/[0.03] p-4 font-mono text-[11px]">{policyJson}</pre>
       </div>
-
-      <CanvasToggle>
-        <PolicyCanvas
-          initialBlocks={initialBlocks}
-          deployedPolicyJson={policyJson}
-          initialName={initialName}
-          carryOver={carryOver}
-        />
-      </CanvasToggle>
     </section>
   );
 }

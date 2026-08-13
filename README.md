@@ -175,21 +175,28 @@ chain
 
 | What | Hash |
 | --- | --- |
-| Agent transfer, executed through KeeperHub (execution id `ygfgqeispq6jac5psm9t1`, completed) | [`0xf2a08944…a2477`](https://sepolia.etherscan.io/tx/0xf2a08944a35b01174a06f620860dd3c21215f80bff996cec1fe27ba59caa2477) |
-| Original guard deployment | [`0x75a17782…5e13f`](https://sepolia.etherscan.io/tx/0x75a17782e2bf0f266854891c8a40bc0a75de38a82d2346a1605391e5c4a5e13f) |
-| Original target the invariant reads | [`0xf9ea685f…08757`](https://sepolia.etherscan.io/tx/0xf9ea685f7103913c399ee96b7dcee4a044bc17e5e374150a7d2a784222f08757) |
-| PositionPool deployment (demo target) | [`0x8d27e63a…9a1f`](https://sepolia.etherscan.io/tx/0x8d27e63ae032bfc6151636e6f732d91dd4375d8173142ae2f769c7009e919a1f) |
+The full ledger, identical to `/api/transactions` and the Transactions page — 18 executed broadcasts, all mined on Sepolia:
+
+| What | Hash |
+| --- | --- |
 | Live guard deployment (executor = deployment KeeperHub wallet) | [`0x78a0d5ff…5a`](https://sepolia.etherscan.io/tx/0x78a0d5ff4e1b72fe8a7d757624078490b20ec02d7c0ba0bc2426e6e48123ce5a) |
-| Position seeded to HF 1.2 for the live guard | [`0x48f6e23f…283`](https://sepolia.etherscan.io/tx/0x48f6e23fbbf5efa60ab7ee8d9e2059dc564eb962a4c1c4baeb7af6701a27c283) |
 | Guarded broadcast, direct pipeline (execution id `oakjghexxsxcpwx4hp94q`, completed) | [`0x56b9b888…c16`](https://sepolia.etherscan.io/tx/0x56b9b888bc83ee9a50252fb6ebd6b35723a5e7ce3d1c6ce5e4ed4b240fbe7c16) |
 | Guarded broadcast via the website execute page (execution id `d7vuibil2081s4zd1j8ne`, completed) | [`0xc2c8debc…260`](https://sepolia.etherscan.io/tx/0xc2c8debc1c8eb62600f57d62b6d53af623203b767e55cd8c71ad60cfbb1d3260) |
-| AnchorStore deployment (admin = deployment wallet, rotatable) | [`0xd8cf9f65…7f40`](https://sepolia.etherscan.io/tx/0xd8cf9f65a5f01cab17cf52b529186d73c3210de06c01eb4e4b4ca53decc97f40) |
-| **First on-chain anchor** — batch 496270, root + policy hash (execution id `61hdnv2a0xdp8yi6mpzqb`, completed) | [`0xec582aca…1eb4`](https://sepolia.etherscan.io/tx/0xec582aca989ddaae8c8b23944ca756b1ba9fba414ec9bb779d58bb787f1eb4) |
-| Position v2 seeded to HF 1.6 (collateral 100 ETH, debt 46.875 ETH) | [`0x3cd81427…2f0`](https://sepolia.etherscan.io/tx/0x3cd81427412db36f75748412babe2992b33f043ef897f1ca9ce24796961ef2f0) |
-| Guard funded — value-bearing HOLD releases forward the held value | [`0xccf1119b…cb7`](https://sepolia.etherscan.io/tx/0xccf1119bd279fba38171ac4de059c649bf5d67227f54388bddefa235cca24cb7) |
-| HOLD → release broadcast — held intent released, value forwarded (execution id `g4546ves7k6wya0qinziq`, completed) | [`0x8a49377e…5d3e`](https://sepolia.etherscan.io/tx/0x8a49377e9345d65aaff341f27c7564b36aaa630cf4d81bae325b5c33d30e5d3e) |
-| Position v4 seeded below floor (HF 1.38) for the keeper's repay demo | [`0xc2631392…0e27`](https://sepolia.etherscan.io/tx/0xc2631392296f7ca79e663510c2b84ce89b3540f517a328249d72195c934a0e27) |
-| Keeper-driven repay — `live-keeper-8`, position restored to HF 1.5 (status 1) | [`0x830860d0…cdf64`](https://sepolia.etherscan.io/tx/0x830860d0e8f5899ed38cdf64) |
+| Guarded broadcast (verification run) | [`0x2bb9dd2f…9a562`](https://sepolia.etherscan.io/tx/0x2bb9dd2f54027ce9880e89cfe9abbd6b6b93d81e2441cd5fbcb49af434f9a562) |
+| Guarded broadcast (verification run) | [`0x83dc88e2…7966`](https://sepolia.etherscan.io/tx/0x83dc88e23effe2d2ece9aaecf51c6ecc40cf3f7cea2c583244a2754c01e07966) |
+| HOLD → release broadcast — held intent released, 0.012 ETH forwarded (execution id `g4546ves7k6wya0qinziq`, completed) | [`0x8a49377e…5d3e`](https://sepolia.etherscan.io/tx/0x8a49377e9345d65aaff341f27c7564b36aaa630cf4d81bae325b5c33d30e5d3e) |
+| Guarded broadcast (verification run) | [`0x475f7fb6…8b1d1`](https://sepolia.etherscan.io/tx/0x475f7fb615c3de2d3126b686b96da4e73291a8dd50a0246a2b9fbcc9a668b1d1) |
+| Guarded broadcast (verification run) | [`0xfff31334…2f7903`](https://sepolia.etherscan.io/tx/0xfff3133468b35ff54931998649eca9aa3e84a4cf314f1bf0a26ef4d6682f7903) |
+| Guarded broadcast (verification run) | [`0xc37dd5d2…91a0b3`](https://sepolia.etherscan.io/tx/0xc37dd5d2f3cfbe97ea33ca3b161abaf2e8e43e0e26d493603c51d91fea91a0b3) |
+| Guarded repay (verification run, execution id `849hz38g9flhlpjsp2np2`, completed) | [`0x5a118f2a…9fc29`](https://sepolia.etherscan.io/tx/0x5a118f2a041f3d9f2837c3ff285c01cccc5e3bc2a07435e00126990f91f9fc29) |
+| Keeper-driven repay — `live-keeper-8`, position restored to HF 1.5 (status 1) | [`0x830860d0…f4328`](https://sepolia.etherscan.io/tx/0x830860d0e8f5899ed38cdf646ff7652b8bcdc69b929539b1d7b26458440f4328) |
+| HOLD → release broadcast from the UI — held intent released, 0.012 ETH forwarded | [`0xa0055514…42ef`](https://sepolia.etherscan.io/tx/0xa005551465fdaa0b082b06a70397ce7947c3aee64c0d01fa10bcbc712eb342ef) |
+| Guarded broadcast from the UI (execution id `mwdmrt9ejqid5buh7135b`, completed) | [`0xa6e3aef1…2131`](https://sepolia.etherscan.io/tx/0xa6e3aef17ea513bc4ab9652b576688ab9a680ff68ce38ac84d69c38d0e342131) |
+| Guarded broadcast (verification run) | [`0x2c03310e…3329af`](https://sepolia.etherscan.io/tx/0x2c03310edab97a17c4b13944116813ba769789052a07486a54d4240dd73329af) |
+| Guarded broadcast (verification run) | [`0x0c367df5…402bd3`](https://sepolia.etherscan.io/tx/0x0c367df57a2d1dd54532851c1712f5945a872966d40989c253b6cda769402bd3) |
+| Guarded broadcast from the UI (execution id `3avtww4pich5huen8mb4w`, completed) | [`0x6e78438a…c80177`](https://sepolia.etherscan.io/tx/0x6e78438a8008480784df186f5d3432940a4f11dd829210ada607234c03080177) |
+| Guarded broadcast (verification run) | [`0xdac9e3cd…867393`](https://sepolia.etherscan.io/tx/0xdac9e3cdee5793ca05bba97105830d31566fcaf3c5e0841de86b1cc6ac867393) |
+| Guarded broadcast (verification run) | [`0x707c3b0e…d317a0`](https://sepolia.etherscan.io/tx/0x707c3b0e3d078b447786f91f29cefafda4b81c9cd9112114af0c1e05d6d317a0) |
 
 ## Tests
 
