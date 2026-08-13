@@ -1,7 +1,7 @@
 "use client";
 
 import { LogoLoop, type LogoItem } from "@/components/logo-loop";
-import { LiveProbe } from "@/components/live-probe";
+import { RecentTransactions } from "@/components/recent-transactions";
 import { ArrowDownRight } from "lucide-react";
 import { motion, useMotionValue, useSpring } from "motion/react";
 import { useRef, type ReactNode, type MouseEvent } from "react";
@@ -92,7 +92,7 @@ export function Hero(): ReactNode {
             variants={fadeInUp}
             transition={{ duration: 0.8, ease }}
           >
-            Simulation-gated execution for onchain agents
+            Guard-gated execution for onchain agents
             <span className="text-accent">✦</span>
           </motion.div>
 
@@ -151,7 +151,7 @@ export function Hero(): ReactNode {
             className="relative dark:mix-blend-darken rounded-2xl overflow-hidden border border-neutral-200 shadow-2xl/5 mask-[linear-gradient(to_bottom,black_50%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_50%,transparent_100%)]"
           >
             <div className="bg-white h-[480px] w-full">
-              <LiveProbe />
+              <RecentTransactions />
             </div>
           </div>
         </div>

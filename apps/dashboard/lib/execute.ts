@@ -150,7 +150,7 @@ async function rpcCall(rpcUrl: string, to: string, data: string): Promise<string
 }
 
 /** The wallet that signs broadcasts for this API key, and whether the guard accepts it. */
-async function executorInfo(
+export async function executorInfo(
   apiKey: string,
   baseUrl: string,
   config: ReturnType<typeof loadConfig>,

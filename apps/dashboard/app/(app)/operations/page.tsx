@@ -23,7 +23,7 @@ export default async function OperationsPage(): Promise<ReactNode> {
     {
       label: "Prometheus — this site",
       value: "/api/metrics",
-      detail: "every scrape runs both guard simulations live; health gauge asserts both directions",
+      detail: "every scrape reads the guard, the executor registration and the anchored batches from the chain — nothing simulated",
       ok: true,
       href: "/api/metrics",
     },
@@ -110,7 +110,7 @@ export default async function OperationsPage(): Promise<ReactNode> {
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
-        {["/api/execute", "/api/probe", "/api/health", "/api/metrics", "/api/transactions", "/api/holds"].map((endpoint) => (
+        {["/api/execute", "/api/health", "/api/metrics", "/api/transactions", "/api/holds", "/readyz", "/healthz"].map((endpoint) => (
           <a
             key={endpoint}
             href={endpoint}

@@ -12,29 +12,6 @@ import { useState } from "react";
  * trusting a server, it would not be verification.
  */
 
-const SAMPLE = JSON.stringify(
-  {
-    intentId: "int_01J8ZQ4T7K",
-    intentHash: "0x9f2b1c",
-    policyHash: "0xab3f77",
-    guard: "0x94FB7677358c44BB0617029a3162108Ae3aa557a",
-    chainId: 11155111,
-    verdict: "DENY",
-    reasons: [
-      {
-        code: "INVARIANT_BROKEN",
-        severity: "deny",
-        message: "Invariant 0 would break: got 1120000000000000000, required 1400000000000000000.",
-      },
-    ],
-    simulation: { wouldRevert: true, gasEstimate: "0", invariantIndex: 0 },
-    execution: null,
-    at: "2026-08-11T14:02:12Z",
-  },
-  null,
-  2,
-);
-
 /** RFC 8785 canonicalization: sorted keys, no whitespace, escaped control chars. */
 function canonicalize(input: unknown, stack: unknown[] = []): string {
   if (input === null || typeof input !== "object") {
@@ -81,7 +58,7 @@ type State =
   | { readonly kind: "done"; readonly canonical: string; readonly digest: string };
 
 export function Verifier() {
-  const [json, setJson] = useState(SAMPLE);
+  const [json, setJson] = useState("");
   const [state, setState] = useState<State>({ kind: "idle" });
 
   const compute = () => {

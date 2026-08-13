@@ -1,27 +1,32 @@
 import { NextResponse } from "next/server";
-import { runProbe } from "../../lib/probe";
+import { loadConfig } from "../../lib/env";
+import { executorInfo } from "../../lib/execute";
 
 export const dynamic = "force-dynamic";
 
 /**
- * GET /readyz — readiness. The probe must be live and both directions asserted,
- * because a guard that refuses everything is broken in a way a single check would
- * score as healthy. Unconfigured state is reported, not faked.
+ * GET /readyz — readiness. The deployment is ready when the guard answers an
+ * on-chain read AND the deployment executor is registered on it — otherwise every
+ * broadcast would be refused. All checks are real chain reads; nothing is simulated.
  */
 export async function GET(): Promise<Response> {
-  const probe = await runProbe();
-  const decisions = probe.results ?? [];
-  const allowed = decisions.filter((d) => d.verdict === "ALLOW").length;
-  const refused = decisions.filter((d) => d.verdict === "DENY").length;
-  const ready = probe.live && allowed > 0 && refused > 0;
+  const config = loadConfig();
+  const executor = await executorInfo(
+    process.env["KEEPERHUB_API_KEY"] ?? "",
+    process.env["KEEPERHUB_BASE_URL"] ?? "https://app.keeperhub.com",
+    config,
+  );
+
+  const guardReachable = config.guardAddress !== "" && executor !== null;
+  const executorRegistered = executor !== null && executor.registered;
+  const ready = guardReachable && executorRegistered;
 
   return NextResponse.json(
     {
       ready,
-      live: probe.live,
-      reason: probe.live ? undefined : probe.reason,
-      allowed,
-      refused,
+      guardReachable,
+      executorRegistered,
+      reason: ready ? undefined : "guard unreachable or executor not registered",
       at: new Date().toISOString(),
     },
     { status: ready ? 200 : 503 },

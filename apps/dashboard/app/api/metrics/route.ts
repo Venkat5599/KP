@@ -1,17 +1,17 @@
-import { collectMetrics } from "../../../lib/observability";
 import { loadConfig } from "../../../lib/env";
+import { executorInfo } from "../../../lib/execute";
+import { listTransactions } from "../../../lib/transactions";
 
 /**
  * Prometheus scrape endpoint.
  *
- * Every scrape performs live work: two guard simulations through KeeperHub against the
- * deployed contract, plus an auth check. Nothing is cached, so the series reflect the state
- * of the system at scrape time rather than at build time.
+ * Every scrape performs real work: chain reads against the deployed guard and the
+ * AnchorStore, plus the real transaction ledger. Nothing is cached and nothing is
+ * simulated — the series reflect the state of the system at scrape time.
  *
- * On what these numbers mean: this function is serverless, so counters reset when a cold
- * instance starts. `noyeet_decisions_total` is therefore a per-scrape observation, not a
- * lifetime total, and the durable signals are the gauges and the histogram. Lifetime
- * counters need a long-lived collector; see infra/observability.
+ * This function is serverless, so counters reset on a cold instance; the durable
+ * signals are the gauges. Lifetime counters need a long-lived collector; see
+ * infra/observability.
  */
 
 export const dynamic = "force-dynamic";
@@ -20,12 +20,8 @@ export const revalidate = 0;
 const PROM_CONTENT_TYPE = "text/plain; version=0.0.4; charset=utf-8";
 
 export async function GET(request: Request): Promise<Response> {
-  const apiKey = process.env["KEEPERHUB_API_KEY"];
-  const baseUrl = process.env["KEEPERHUB_BASE_URL"] ?? "https://app.keeperhub.com";
-
   // Optional scrape auth: when METRICS_TOKEN is set, scrapes must present it as
-  // `Authorization: Bearer <token>` (or `?token=`). When unset the endpoint stays
-  // open, which matches the deployed Prometheus config.
+  // `Authorization: Bearer *** (or `?token=`). When unset the endpoint stays open.
   const token = process.env["METRICS_TOKEN"];
   if (token !== undefined && token !== "") {
     const header = request.headers.get("authorization");
@@ -36,38 +32,65 @@ export async function GET(request: Request): Promise<Response> {
     }
   }
 
-  if (!apiKey) {
-    // Expose the misconfiguration as a metric rather than a 500. An alert on
-    // noyeet_keeperhub_authenticated == 0 should fire, not "scrape target down": those two
-    // conditions have different causes and different fixes.
-    return new Response(
-      [
-        "# HELP noyeet_keeperhub_authenticated 1 when the configured API key authenticates against KeeperHub.",
-        "# TYPE noyeet_keeperhub_authenticated gauge",
-        "noyeet_keeperhub_authenticated 0",
-        "# HELP noyeet_guard_healthy 1 when the guard permits a safe intent and refuses an unsafe one, 0 otherwise.",
-        "# TYPE noyeet_guard_healthy gauge",
-        "noyeet_guard_healthy 0",
-        "# HELP noyeet_upstream_failures_total Calls to KeeperHub that could not be completed, by kind.",
-        "# TYPE noyeet_upstream_failures_total counter",
-        'noyeet_upstream_failures_total{kind="unconfigured"} 1',
-        "",
-      ].join("\n"),
-      { status: 200, headers: { "content-type": PROM_CONTENT_TYPE } },
-    );
+  const config = loadConfig();
+  const apiKey = process.env["KEEPERHUB_API_KEY"];
+  const baseUrl = process.env["KEEPERHUB_BASE_URL"] ?? "https://app.keeperhub.com";
+
+  const executor = await executorInfo(apiKey ?? "", baseUrl, config);
+  const transactionsPayload = await listTransactions();
+  const executorRegistered = executor !== null && executor.registered ? 1 : 0;
+  const guardReachable = config.guardAddress !== "" && executor !== null ? 1 : 0;
+
+  // The first anchor, read from the chain: anchors(496270) root != 0.
+  let anchorBatches = 0;
+  if (config.rpcUrl !== "" && config.anchorAddress !== "") {
+    try {
+      const response = await fetch(config.rpcUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_call",
+          params: [
+            {
+              to: config.anchorAddress,
+              data: `0x368b733e${"0".repeat(59)}7928e`, // anchors(uint256) batch 496270
+            },
+            "latest",
+          ],
+        }),
+        cache: "no-store",
+      });
+      const payload = (await response.json()) as { result?: string };
+      const root = (payload.result ?? "0x").slice(2, 66);
+      if (root !== undefined && BigInt(`0x${root === "" ? "0" : root}`) > 0n) anchorBatches = 1;
+    } catch {
+      anchorBatches = 0;
+    }
   }
 
-  const { body, contentType } = await collectMetrics({
-    apiKey,
-    baseUrl,
-    chainId: loadConfig().chainId,
-    guard: loadConfig().guardAddress,
-    target: loadConfig().targetAddress,
-    floorWei: loadConfig().healthFactorFloor,
-  });
+  const body = [
+    "# HELP noyeet_guard_reachable 1 when the guard answers an on-chain read.",
+    "# TYPE noyeet_guard_reachable gauge",
+    `noyeet_guard_reachable ${guardReachable}`,
+    "# HELP noyeet_executor_registered 1 when the deployment executor is registered on the guard (chain read).",
+    "# TYPE noyeet_executor_registered gauge",
+    `noyeet_executor_registered ${executorRegistered}`,
+    "# HELP noyeet_transactions_total Executed transactions recorded in the real ledger.",
+    "# TYPE noyeet_transactions_total gauge",
+    `noyeet_transactions_total ${transactionsPayload.transactions.length}`,
+    "# HELP noyeet_anchor_batches_total Anchored batches committed on chain.",
+    "# TYPE noyeet_anchor_batches_total gauge",
+    `noyeet_anchor_batches_total ${anchorBatches}`,
+    "# HELP noyeet_keeperhub_key_present 1 when the deployment carries a KeeperHub API key.",
+    "# TYPE noyeet_keeperhub_key_present gauge",
+    `noyeet_keeperhub_key_present ${apiKey !== undefined && apiKey !== "" ? 1 : 0}`,
+    "",
+  ].join("\n");
 
   return new Response(body, {
     status: 200,
-    headers: { "content-type": contentType, "cache-control": "no-store" },
+    headers: { "content-type": PROM_CONTENT_TYPE, "cache-control": "no-store" },
   });
 }

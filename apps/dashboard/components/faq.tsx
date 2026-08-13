@@ -26,7 +26,7 @@ const faqs = [
       "No. noyeet is a REST gateway plus a Solidity guard. It is built on KeeperHub, which offers its own MCP server for agent-native access; noyeet consumes KeeperHub's API rather than exposing an MCP surface.",
   },
   {
-    question: "What happens when the simulation and the chain disagree?",
+    question: "What happens when the preflight and the chain disagree?",
     answer:
       "If state moves between simulation and inclusion, the guard's assertion at inclusion reverts the transaction atomically. This was demonstrated against the deployed Sepolia guard on a chain fork: the unsafe broadcast mined with status 0 and reverted NOYEET/1:INV:0:1120000000000000000:1400000000000000000, leaving the position unchanged.",
   },

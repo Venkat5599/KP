@@ -125,11 +125,11 @@ function StepByStepCard(): ReactNode {
               executeGuarded,
             </h4>
             <h4 className="text-3xl font-medium text-neutral-900 leading-none tracking-tight mb-4">
-              simulate: true
+              then asserts
             </h4>
             <p className="text-sm text-neutral-500 leading-snug mb-8">
-              A revert means the future is bad, so the transaction is denied before it
-              exists.
+              The guard runs the calls, then asserts the post-state — a broken health
+              factor reverts the whole transaction.
             </p>
 
             {/* Project Card */}
@@ -194,10 +194,11 @@ function DashboardCard(): ReactNode {
     >
       <div className="relative z-10 max-w-48 transition-transform duration-500 ease-out group-hover:scale-105">
         <h3 className="text-xl md:text-2xl whitespace-nowrap font-medium text-card-foreground leading-tight mb-3">
-          Live verdict ledger
+          Receipts anchored on chain
         </h3>
         <p className="text-card-foreground-muted text-sm">
-          Two simulations, run against the deployed guard on every request
+          Every decision is hashed into a Merkle root; the root and the policy hash are
+          committed to the AnchorStore per batch. First anchor live: batch 496270.
         </p>
       </div>
 
@@ -279,7 +280,7 @@ function IntegrationsCard(): ReactNode {
           Built on KeeperHub
         </h3>
         <p className="text-neutral-700 text-sm">
-          simulate: true preflight, idempotency keys, Turnkey custody, gas sponsorship
+          preflight before broadcast, idempotency keys, Turnkey custody, gas sponsorship
         </p>
       </div>
 

@@ -5,27 +5,37 @@ import { useState, useEffect, type ReactNode } from "react";
 
 /**
  * The chain is the witness. No invented people, no fake quotes: each "testimonial"
- * is a real statement the system produced — a live verdict, a mined revert, a test
- * suite result. The carousel UI is the template's; the content is evidence.
+ * is a real statement the system produced — a mined anchor, a keeper decision, a
+ * held-then-released intent, a test suite result. The carousel UI is the template's;
+ * the content is evidence from the live system.
  */
 const testimonials = [
   {
     quote:
-      "NOYEET/1:INV:0:1120000000000000000:1400000000000000000 — a broadcast of the unsafe composite mined with status 0 and left the position unchanged.",
-    name: "The guard",
-    title: "at inclusion, on Sepolia (fork-proof, chaos-report.md)",
-    initials: "INV",
-    color: "#9e3d33",
+      "Batch 496270 anchored: root 0xc3b58fcf… and the policy hash committed to the AnchorStore — tx 0xec582aca, block 11476070, verified against on-chain storage.",
+    name: "The first anchor",
+    title: "0xBeD92c60…73dC2, on Sepolia",
+    initials: "1A",
+    color: "#2f6b4f",
     company: "Sepolia",
   },
   {
     quote:
-      "borrowMore(1.5e18): HTTP 200, wouldRevert false, gas 52667. The permit exists only while the chain agrees with the consequence.",
-    name: "The live probe",
-    title: "KeeperHub simulate: true, per request",
-    initials: "200",
-    color: "#2f6b4f",
+      "The keeper read the position below the floor, proposed the repay, and the guard enforced it — live-keeper-8 mined, position restored to health factor 1.5.",
+    name: "The keeper",
+    title: "continuous run, tx 0x830860d0",
+    initials: "K8",
+    color: "#3c5a54",
     company: "KeeperHub",
+  },
+  {
+    quote:
+      "A value-bearing intent was held for review, then released by the operator: the held composite broadcast through the guard and 0.012 ETH was forwarded — tx 0x8a49377e.",
+    name: "The human gate",
+    title: "hold → release, tx 0x8a49377e",
+    initials: "H→",
+    color: "#9e3d33",
+    company: "the chain",
   },
   {
     quote:
@@ -33,21 +43,12 @@ const testimonials = [
     name: "The suite",
     title: "bun test packages apps templates · forge test",
     initials: "203",
-    color: "#3c5a54",
-    company: "Foundry",
-  },
-  {
-    quote:
-      "The re-anchor of the same batch with a different policy hash is refused: NOYEET/1:ANCHOR_CONFLICT. A committed batch is permanent, and so is the policy it names.",
-    name: "AnchorStore",
-    title: "0x3Dc29f2C…4f6b, deployed on Sepolia",
-    initials: "A∅",
     color: "#a8762a",
-    company: "Turnkey",
+    company: "Foundry",
   },
 ];
 
-const companies = ["KeeperHub", "Turnkey", "Sepolia", "Foundry"];
+const companies = ["Sepolia", "KeeperHub", "the chain", "Foundry"];
 
 export function Testimonials(): ReactNode {
   const [activeIndex, setActiveIndex] = useState(0);

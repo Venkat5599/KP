@@ -24,6 +24,7 @@ export interface DashboardConfig {
   readonly healthFactorFloor: string;
   readonly gatewayUrl: string | null;
   readonly rpcUrl: string;
+  readonly anchorAddress: string;
   readonly seedTransactions: readonly TransactionSeed[];
 }
 
@@ -59,6 +60,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     explorer: get("NOYEET_EXPLORER") ?? "",
     healthFactorFloor: get("NOYEET_HEALTH_FACTOR_FLOOR") ?? "",
     gatewayUrl: get("NOYEET_GATEWAY_URL"),
+    anchorAddress: get("ANCHOR_ADDRESS") ?? "",
     rpcUrl:
       get("NOYEET_RPC_URL") ??
       get("BASE_SEPOLIA_RPC_URL") ??

@@ -2,8 +2,7 @@ import { AppNav } from "@/components/app-nav";
 import { ConnectWallet } from "@/components/connect-wallet";
 import { loadConfig } from "@/lib/env";
 import { shorten } from "@/lib/format";
-import { runProbe } from "@/lib/probe";
-import { computeHealth } from "@/lib/health";
+import { executorInfo } from "@/lib/execute";
 import { Radio } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -13,9 +12,11 @@ export const revalidate = 0;
 /** The dapp shell: fixed sidebar + minimal top bar. Each nav item is its own page. */
 export default async function AppLayout({ children }: { children: ReactNode }): Promise<ReactNode> {
   const config = loadConfig();
-  const probe = await runProbe();
-  const health = await computeHealth(probe);
-  const probeLive = probe.live && (probe.results?.length ?? 0) > 0;
+  const executor = await executorInfo(
+    process.env["KEEPERHUB_API_KEY"] ?? "",
+    process.env["KEEPERHUB_BASE_URL"] ?? "https://app.keeperhub.com",
+    config,
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-7xl">
@@ -32,25 +33,29 @@ export default async function AppLayout({ children }: { children: ReactNode }): 
         <div className="mt-auto space-y-2">
           <div className="flex items-center gap-2 rounded-xl border border-border/70 px-3 py-2.5">
             <span
-              className={`size-2 shrink-0 rounded-full ${probeLive ? "bg-emerald-500" : "bg-red-500"}`}
+              className={`size-2 shrink-0 rounded-full ${executor !== null && executor.registered ? "bg-emerald-500" : "bg-red-500"}`}
               aria-hidden="true"
             />
             <div className="min-w-0">
-              <p className="text-xs font-medium">Live probe</p>
+              <p className="text-xs font-medium">Executor</p>
               <p className="truncate font-mono text-[10px] text-muted-foreground">
-                {probeLive ? "simulating per request" : (probe.reason ?? "unavailable")}
+                {executor !== null && executor.registered
+                  ? `registered · ${shorten(executor.wallet, 6, 4)}`
+                  : executor !== null
+                    ? `not registered · ${shorten(executor.wallet, 6, 4)}`
+                    : "read failed"}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 rounded-xl border border-border/70 px-3 py-2.5">
             <span
-              className={`size-2 shrink-0 rounded-full ${health.guard.reachable ? "bg-emerald-500" : "bg-red-500"}`}
+              className={`size-2 shrink-0 rounded-full ${config.guardAddress === "" ? "bg-red-500" : "bg-emerald-500"}`}
               aria-hidden="true"
             />
             <div className="min-w-0">
               <p className="text-xs font-medium">Guard</p>
               <p className="truncate font-mono text-[10px] text-muted-foreground">
-                {health.guard.reachable ? "on chain" : "RPC unreachable"}
+                {config.guardAddress === "" ? "unconfigured" : `${shorten(config.guardAddress, 8, 6)} · on chain`}
               </p>
             </div>
           </div>

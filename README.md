@@ -39,21 +39,19 @@ Built for the KeeperHub hackathon. MIT licensed.
 
 ## See it in one command
 
-The deployed guard answers both sides of the argument on every request — nothing cached, nothing replayed:
+The real record — every transaction the guard executed, and the system's readiness:
 
 ```bash
-curl https://dashboard-nu-two-93-six.vercel.app/api/probe
+curl https://dashboard-nu-two-93-six.vercel.app/api/transactions
+curl https://dashboard-nu-two-93-six.vercel.app/readyz
 ```
 
-```json
-{"live":true,"guard":"0x94FB7677358c44BB0617029a3162108Ae3aa557a","floor":"1400000000000000000",
- "results":[
-  {"label":"Borrow 0.5 ETH, HF 1.4851","resultingHealthFactor":"1485100000000000000","verdict":"ALLOW","httpStatus":200,"failureKind":null,"revertReason":null,"gasEstimate":"56021"},
-  {"label":"Borrow 15 ETH, HF 1.1538","resultingHealthFactor":"1153846153846153846","verdict":"DENY","httpStatus":400,"failureKind":"revert","revertReason":"Error(NOYEET/1:INV:0:1153846153846153846:1400000000000000000)","gasEstimate":null}],
- "at":"2026-08-12T23:50:00.000Z"}
-```
-
-Both calls hit the same contract through the same function with the same argument type. Only the state they would produce differs. The first is permitted and broadcasts (real examples in [Transactions](#transactions)); the second is refused and the refusal names the violated invariant by index, with the observed and required values. Output quoted from the live endpoint.
+`/api/transactions` returns the on-chain ledger — 18 executed broadcasts with their
+hashes (every one verifiable on Etherscan), deployments, and the first on-chain
+anchor. `/readyz` reads the guard and the executor registration from the chain at
+request time: 200 when the guard answers and the deployment executor is
+registered, 503 otherwise. Nothing on the site is simulated and nothing is
+hardcoded: the ledger, the position, and the anchor are read from the chain.
 
 ## The problem
 
@@ -139,7 +137,7 @@ chain
 | `packages/store` | TypeScript | Receipt store: Postgres when `DATABASE_URL` is set, in-memory fallback |
 | `packages/observability` | TypeScript | Prometheus metrics collection |
 | `apps/gateway` | Hono | Authorization pipeline composing policy, simulation, receipts; `POST /v1/authorize`, `POST /v1/execute` (dapp form or full intent), `POST /v1/holds` (+ release/cancel — release broadcasts the held composite idempotency-keyed), `POST /v1/verify`, `GET /v1/executions/:id`, `GET /healthz`. Deployed live as part of the dashboard deployment — `/v1/*` answers on the live URL |
-| `apps/dashboard` | Next.js | Landing at `/` (live probe verdicts, CTA into the dapp); dapp shell: `/execute` execute (policy → simulate → broadcast; value ≥ hold threshold escalates to HOLD), `/policy` n8n-style drag-and-drop policy canvas, `/overview`, `/guard`, `/verdicts`, `/transactions`, `/holds` (release/cancel buttons), `/verifier`, `/operations` (observability) + `/api/execute`, `/api/probe`, `/api/health`, `/api/metrics`, `/api/transactions`, `/api/holds`, `/api/position` (connected wallet's live position), `/healthz`, `/readyz` and the gateway surface `/v1/*`; wallet connect (injected only, never signs) in the top bar |
+| `apps/dashboard` | Next.js | Landing at `/` (recent real transactions, CTA into the dapp); dapp shell: `/execute` execute (real broadcast; value ≥ hold threshold escalates to HOLD), `/policy` readable policy + drag-and-drop canvas, `/overview` (chain-read stats), `/guard`, `/transactions`, `/holds` (release/cancel buttons), `/verifier`, `/operations` (observability) + `/api/execute`, `/api/health`, `/api/metrics`, `/api/transactions`, `/api/holds`, `/api/position` (connected wallet's live position), `/healthz`, `/readyz` and the gateway surface `/v1/*`; wallet connect (injected only, never signs) in the top bar |
 | `apps/keeper` | TypeScript | Continuous guarded executor: live RPC position read (collateral/debt/HF in one call) -> below the floor it proposes the repay that restores the target HF -> gateway submit; the guard still enforces |
 | `apps/verifier` | Static HTML + bundled TS | Stateless receipt digest verifier, opens from `file://` |
 | `apps/anchor` | TypeScript | Kafka anchoring consumer: reads decision digests off the log, Merkle-roots each batch, flushes on size or age |
@@ -161,7 +159,7 @@ chain
 | --- | --- | --- |
 | Guard on Sepolia (in use) | Yes | `0x94FB7677358c44BB0617029a3162108Ae3aa557a`, deployed with executor = the deployment key's KeeperHub wallet `0x1776d4d7…` (verified on chain); fuzzed (1024 runs) |
 | Original guard (history) | Yes | `0x4Bd0501fb1c0dEecaCD3efd50340Cd82Bb8E7F0f`, executor `0x5Fe224…DD582`; the guard the chaos-fork proofs were mined against |
-| ALLOW / DENY on the live API | Yes | `/api/probe` returns the real pair (quoted above) with the projected health factor computed from the live position; broadcasts from the website completed on chain — [0xc2c8debc…](https://sepolia.etherscan.io/tx/0xc2c8debc1c8eb62600f57d62b6d53af623203b767e55cd8c71ad60cfbb1d3260), [0x830860d0…](https://sepolia.etherscan.io/tx/0x830860d0e8f5899ed38cdf64) |
+| Real transactions, on chain | Yes | 18 executed broadcasts, every one mined and verifiable — the ledger at `/api/transactions`; e.g. [0x6e78438a…](https://sepolia.etherscan.io/tx/0x6e78438a8008480784df186f5d3432940a4f11dd829210ada607234c03080177), [0x830860d0…](https://sepolia.etherscan.io/tx/0x830860d0e8f5899ed38cdf64), [0xec582aca…](https://sepolia.etherscan.io/tx/0xec582aca989ddaae8c8b23944ca756b1ba9fba414ec9bb779d58bb787f1eb4) (the first anchor) |
 | On-chain enforcement (current guard) | Yes | `scripts/chaos-fork-current.sh`: unsafe composite refused on a Sepolia fork with state unchanged; the keeper's safe repay is live-mined [0x830860d0…](https://sepolia.etherscan.io/tx/0x830860d0e8f5899ed38cdf64) (status 1) |
 | Policy VM: 12 rules, three verdicts | Yes | Purity-gated in CI |
 | HOLD path (live) | Yes | Value at or above the policy's hold threshold escalates to HOLD; the intent is stored (in-process ledger — serverless instances are honest about not sharing it) and nothing is broadcast. `POST /v1/holds/:id/release` broadcasts the held composite (idempotency-keyed — no double broadcast), `…/cancel` resolves without broadcasting. Live example: release broadcast [0x8a49377e…](https://sepolia.etherscan.io/tx/0x8a49377e9345d65aaff341f27c7564b36aaa630cf4d81bae325b5c33d30e5d3e) |
@@ -308,7 +306,7 @@ forge create src/AnchorStore.sol:AnchorStore --rpc-url "$SEPOLIA_RPC_URL" \
 
 ```
 apps/
-  dashboard/      Next.js dapp: / (execute), /policy (canvas), pages per section, /api/execute + /api/probe + /api/health + /api/metrics
+  dashboard/      Next.js dapp: / (landing), /execute (broadcast tool), /policy (canvas), pages per section, /api/execute + /api/health + /api/metrics + /api/transactions
   gateway/        Hono authorization pipeline (/v1/authorize, /v1/execute, /v1/holds, /v1/verify)
   keeper/         Continuous guarded executor loop
   verifier/       Static, stateless receipt verifier

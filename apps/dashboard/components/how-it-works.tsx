@@ -14,9 +14,9 @@ const steps = [
   },
   {
     icon: Users,
-    title: "Simulate the consequence",
+    title: "Preflight the consequence",
     description:
-      "The gateway wraps the intent in executeGuarded and runs it with simulate: true through KeeperHub. A revert means the future is bad, so the transaction is denied before it exists.",
+      "The gateway wraps the intent in executeGuarded and preflights it against the chain before anything is broadcast. A revert means the future is bad, so the transaction is denied before it exists.",
   },
   {
     icon: Rocket,
