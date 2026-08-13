@@ -49,9 +49,8 @@ export function PositionPanel(): ReactNode {
         <p className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Your position
         </p>
-        <p className="mt-2 font-mono text-xs text-muted-foreground">
-          connect a wallet (top bar) to read its position on the demo pool — the same
-          pool the guard&apos;s invariant probes
+        <p className="mt-2 text-xs text-muted-foreground">
+          Connect a wallet (top bar) to see its position on the pool the guard protects.
         </p>
       </div>
     );
@@ -69,22 +68,22 @@ export function PositionPanel(): ReactNode {
       ) : (
         <dl className="mt-3 grid grid-cols-3 gap-4">
           <div>
-            <dt className="font-mono text-[11px] text-muted-foreground">collateral</dt>
-            <dd className="mt-1 font-mono text-sm">{fmtEth(position.collateral)} ETH</dd>
+            <dt className="text-[11px] text-muted-foreground">Collateral (ETH)</dt>
+            <dd className="mt-1 font-mono text-sm">{fmtEth(position.collateral)}</dd>
           </div>
           <div>
-            <dt className="font-mono text-[11px] text-muted-foreground">debt</dt>
-            <dd className="mt-1 font-mono text-sm">{fmtEth(position.debt)} ETH</dd>
+            <dt className="text-[11px] text-muted-foreground">Debt (ETH)</dt>
+            <dd className="mt-1 font-mono text-sm">{fmtEth(position.debt)}</dd>
           </div>
           <div>
-            <dt className="font-mono text-[11px] text-muted-foreground">health factor</dt>
+            <dt className="text-[11px] text-muted-foreground">Health factor</dt>
             <dd className="mt-1 font-mono text-sm">{fmtHf(position.healthFactor)}</dd>
           </div>
         </dl>
       )}
       {position !== null && !position.hasPosition ? (
-        <p className="mt-3 font-mono text-[11px] text-muted-foreground">
-          no position on the demo pool — this wallet has never borrowed here
+        <p className="mt-3 text-[11px] text-muted-foreground">
+          No position — this wallet hasn't borrowed here.
         </p>
       ) : null}
     </div>

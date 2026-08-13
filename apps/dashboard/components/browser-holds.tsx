@@ -58,9 +58,9 @@ export function BrowserHolds(): ReactNode {
       <h2 className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
         This browser&apos;s holds
       </h2>
-      <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-        created from the execute page in this browser; the serverless ledger is per-instance, so these are
-        shown from the browser&apos;s copy. Release and cancel work statelessly.
+      <p className="mt-1 text-xs text-muted-foreground">
+        Holds created from the Execute page in this browser, kept here too so they're never
+        invisible. Release and cancel work from either list.
       </p>
       <div className="mt-2 space-y-2">
         {holds.map((hold) => (

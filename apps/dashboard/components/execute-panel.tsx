@@ -94,8 +94,8 @@ export function ExecutePanel(): ReactNode {
       <div className="flex flex-col gap-6 p-6 md:flex-row md:items-start md:justify-between">
         <form onSubmit={submit} className="flex flex-1 flex-col gap-4 md:flex-row md:items-end">
           <div className="flex-1">
-            <label htmlFor="amount" className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-              borrowMore amount (ETH)
+            <label htmlFor="amount" className="text-sm font-medium text-foreground">
+              Amount to borrow (ETH)
             </label>
             <div className="mt-2 flex items-center rounded-xl border border-border/70 bg-background px-4 focus-within:ring-2 focus-within:ring-accent">
               <input
@@ -111,14 +111,14 @@ export function ExecutePanel(): ReactNode {
                 className="w-full bg-transparent py-3 font-mono text-lg outline-none"
               />
             </div>
-            <p className="mt-1.5 font-mono text-[11px] text-muted-foreground">
-              borrows against the live position; the guard asserts HF ≥ floor after
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Adds debt to the position. It only goes through if the position stays healthy.
             </p>
           </div>
 
           <div className="flex-1">
-            <label htmlFor="value" className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-              native value (ETH, optional)
+            <label htmlFor="value" className="text-sm font-medium text-foreground">
+              ETH to send with it (optional)
             </label>
             <div className="mt-2 flex items-center rounded-xl border border-border/70 bg-background px-4 focus-within:ring-2 focus-within:ring-accent">
               <input
@@ -130,13 +130,12 @@ export function ExecutePanel(): ReactNode {
                   setValue(event.target.value);
                   setState({ kind: "idle" });
                 }}
-                placeholder="0.012 — sends value, triggers HOLD"
+                placeholder="0.012"
                 className="w-full bg-transparent py-3 font-mono text-lg outline-none"
               />
             </div>
-            <p className="mt-1.5 font-mono text-[11px] text-muted-foreground">
-              at or above the policy's hold threshold (0.01 ETH) the intent is held for a
-              human instead of executing
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              0.01 ETH or more waits for a human to approve it first.
             </p>
           </div>
 
@@ -205,7 +204,7 @@ export function ExecutePanel(): ReactNode {
                 )}
                 {payload.execution ? (
                   <span className="rounded-full border border-border/70 px-3 py-1 font-mono text-xs">
-                    executionId {payload.execution.executionId}
+                    tx id {payload.execution.executionId}
                   </span>
                 ) : null}
                 {payload.holdId ? (
@@ -215,7 +214,7 @@ export function ExecutePanel(): ReactNode {
                 ) : null}
                 {payload.simulation?.gasEstimate ? (
                   <span className="rounded-full border border-border/70 px-3 py-1 font-mono text-xs">
-                    gas {payload.simulation.gasEstimate}
+                    preflight gas {payload.simulation.gasEstimate}
                   </span>
                 ) : null}
               </div>
@@ -249,8 +248,8 @@ export function ExecutePanel(): ReactNode {
                 </div>
               ) : null}
 
-              <p className="font-mono text-[11px] text-muted-foreground">
-                intent {payload.intentId ?? ""} · {payload.at.slice(0, 19).replace("T", " ")} UTC
+              <p className="text-xs text-muted-foreground">
+                id {payload.intentId ?? ""} · {payload.at.slice(0, 19).replace("T", " ")} UTC
               </p>
             </div>
           )}

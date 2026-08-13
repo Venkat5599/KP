@@ -31,15 +31,14 @@ export default async function HoldsPage(): Promise<ReactNode> {
       <h1 className="font-mono text-sm font-semibold uppercase tracking-widest text-muted-foreground" id="holds-heading">
         Holds
       </h1>
-      <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-        release broadcasts the held composite through the guard (idempotency-keyed); cancel
-        resolves without broadcasting. The ledger is in-process on this deployment.
+      <p className="mt-1 text-xs text-muted-foreground">
+        Release sends the held transaction through the guard. Cancel drops it without sending.
       </p>
 
       {holds.length === 0 ? (
-        <p className="mt-4 rounded-2xl border border-border/70 p-5 font-mono text-xs text-muted-foreground">
-          queue empty on this instance — submit an intent with a native value at or above the hold threshold
-          (0.01 ETH) from the execute page to create one
+        <p className="mt-4 rounded-2xl border border-border/70 p-5 text-xs text-muted-foreground">
+          No holds right now. From the Execute page, send 0.01 ETH or more with a transaction
+          and it will wait here for you.
         </p>
       ) : (
         <div className="mt-4 space-y-2">
