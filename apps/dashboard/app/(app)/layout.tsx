@@ -61,7 +61,7 @@ export default async function AppLayout({ children }: { children: ReactNode }): 
       <div className="min-w-0 flex-1">
         {/* Top bar: chain identity only. Navigation lives in the sidebar. */}
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-border/70 bg-background/80 px-6 backdrop-blur-xl">
-          <a href="/" className="shrink-0 font-mono text-sm font-semibold hover:opacity-80">noyeet</a>
+          <a href="/" className="shrink-0 font-mono text-sm font-semibold hover:opacity-80 md:hidden">noyeet</a>
           <div className="ml-auto inline-flex shrink-0 items-center gap-2">
             <ConnectWallet />
             <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 px-3 py-1.5 font-mono text-xs">
