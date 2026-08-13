@@ -14,6 +14,18 @@ interface ExecuteResponse {
   readonly reason?: string;
   readonly intentId?: string;
   readonly holdId?: string;
+  readonly heldIntent?: {
+    readonly intentId: string;
+    readonly chainId: number;
+    readonly calls: readonly { target: string; value: string; data: string }[];
+    readonly invariants: readonly {
+      target: string;
+      probe: string;
+      word: number;
+      op: string;
+      threshold: string;
+    }[];
+  };
   readonly verdict?: "ALLOW" | "HOLD" | "DENY";
   readonly reasons?: readonly { code: string; severity: string; message: string }[];
   readonly simulation?: {
@@ -48,7 +60,30 @@ export function ExecutePanel(): ReactNode {
       cache: "no-store",
     })
       .then((response) => response.json() as Promise<ExecuteResponse>)
-      .then((payload) => setState({ kind: "done", payload }))
+      .then((payload) => {
+        // A HOLD verdict carries the full held intent. The serverless hold ledger is
+        // per-instance, so the browser keeps a copy of the holds it created — the
+        // /holds page renders those alongside the instance ledger so the human gate
+        // is never invisible to the person who triggered it.
+        if (payload.verdict === "HOLD" && payload.holdId !== undefined && payload.heldIntent !== undefined) {
+          try {
+            localStorage.setItem(
+              `noyeet:hold:${payload.holdId}`,
+              JSON.stringify({
+                holdId: payload.holdId,
+                intentId: payload.intentId,
+                verdict: payload.verdict,
+                digest: payload.digest,
+                at: payload.at,
+                intent: payload.heldIntent,
+              }),
+            );
+          } catch {
+            // storage full or blocked — the instance ledger still has it
+          }
+        }
+        setState({ kind: "done", payload });
+      })
       .catch((error: unknown) => setState({ kind: "error", message: (error as Error).message }));
   };
 

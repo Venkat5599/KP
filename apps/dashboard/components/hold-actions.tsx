@@ -8,7 +8,15 @@ import { useState, type ReactNode } from "react";
  * (idempotency-keyed on the intent — it can never double-broadcast); cancel
  * resolves it without broadcasting. Both are real POSTs to /v1/holds/:id.
  */
-export function HoldActions({ holdId }: { holdId: string }): ReactNode {
+export function HoldActions({
+  holdId,
+  intent,
+  onResolved,
+}: {
+  holdId: string;
+  intent?: unknown;
+  onResolved?: () => void;
+}): ReactNode {
   const router = useRouter();
   const [busy, setBusy] = useState<"release" | "cancel" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -16,12 +24,27 @@ export function HoldActions({ holdId }: { holdId: string }): ReactNode {
   const act = (action: "release" | "cancel") => {
     setBusy(action);
     setError(null);
+    const body = intent === undefined ? undefined : JSON.stringify({ intent });
     fetch(`/v1/holds/${encodeURIComponent(holdId)}/${action}`, {
       method: "POST",
+      ...(body === undefined ? {} : { headers: { "content-type": "application/json" }, body }),
       cache: "no-store",
     })
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        // Reflect the resolved status in the browser copy too, so the chip is honest.
+        try {
+          const key = `noyeet:hold:${holdId}`;
+          const existing = localStorage.getItem(key);
+          if (existing !== null) {
+            const record = JSON.parse(existing) as Record<string, unknown>;
+            record.status = action === "release" ? "released" : "cancelled";
+            localStorage.setItem(key, JSON.stringify(record));
+          }
+        } catch {
+          // storage blocked — the server verdict is the source of truth
+        }
+        onResolved?.();
         router.refresh();
       })
       .catch((cause: unknown) => {

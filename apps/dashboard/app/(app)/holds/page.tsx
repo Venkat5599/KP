@@ -1,4 +1,5 @@
 import { HoldActions } from "@/components/hold-actions";
+import { BrowserHolds } from "@/components/browser-holds";
 import { listHolds } from "@/lib/holds";
 import { createMetadata } from "@/lib/metadata";
 import type { Metadata } from "next";
@@ -37,7 +38,7 @@ export default async function HoldsPage(): Promise<ReactNode> {
 
       {holds.length === 0 ? (
         <p className="mt-4 rounded-2xl border border-border/70 p-5 font-mono text-xs text-muted-foreground">
-          queue empty — submit an intent with a native value at or above the hold threshold
+          queue empty on this instance — submit an intent with a native value at or above the hold threshold
           (0.01 ETH) from the execute page to create one
         </p>
       ) : (
@@ -73,6 +74,7 @@ export default async function HoldsPage(): Promise<ReactNode> {
           ))}
         </div>
       )}
+      <BrowserHolds />
     </section>
   );
 }

@@ -1,4 +1,3 @@
-import { loadConfig } from "@/lib/env";
 import { createMetadata } from "@/lib/metadata";
 import { ArrowUpRight } from "lucide-react";
 import type { Metadata } from "next";
@@ -15,8 +14,6 @@ export const revalidate = 0;
 
 /** Every row is a fact from configuration or a live check. Nothing is invented. */
 export default async function OperationsPage(): Promise<ReactNode> {
-  const config = loadConfig();
-  const gatewayUrl = config.gatewayUrl;
   const kafkaEnabled = process.env["KAFKA_ENABLED"] === "true";
   const kafkaBrokers = process.env["KAFKA_BROKERS"] ?? "";
   const otlpEnabled = process.env["OTEL_ENABLED"] === "true";
@@ -32,20 +29,18 @@ export default async function OperationsPage(): Promise<ReactNode> {
     },
     {
       label: "Gateway",
-      value: gatewayUrl === null ? "not deployed" : gatewayUrl,
+      value: "live on this deployment",
       detail:
-        gatewayUrl === null
-          ? "set NOYEET_GATEWAY_URL to point at a running gateway; its /metrics and /readyz then become visible below"
-          : "proxy the gateway's /readyz here",
-      ok: gatewayUrl !== null,
-      ...(gatewayUrl === null ? {} : { href: `${gatewayUrl}/readyz` }),
+        "this deployment serves the gateway surface: /v1/authorize, /v1/execute, /v1/holds (+ release/cancel), /v1/verify, /v1/executions/:id, /healthz, /readyz. The hold ledger is in-process (serverless instances do not share memory); the Postgres-backed store is the durable version when DATABASE_URL is set",
+      ok: true,
+      href: "/healthz",
     },
     {
       label: "Kafka event log",
       value: kafkaEnabled ? (kafkaBrokers === "" ? "enabled, brokers unset" : kafkaBrokers) : "not enabled",
       detail: kafkaEnabled
         ? "gateway publishes every decision to the TOPICS.DECISIONS topic — kafkajs producer, acks=-1, keyed by intentId, RFC 8785 payloads"
-        : "gateway-side: set KAFKA_ENABLED=true and KAFKA_BROKERS=host:port on the gateway deployment",
+        : "set KAFKA_ENABLED=true and KAFKA_BROKERS=host:port on a long-lived gateway process; the serverless deployment does not run the producer (infra/observability has the full stack)",
       ok: kafkaEnabled,
     },
     {
@@ -53,7 +48,7 @@ export default async function OperationsPage(): Promise<ReactNode> {
       value: otlpEnabled ? (otlpEndpoint === "" ? "enabled, endpoint unset" : otlpEndpoint) : "not enabled",
       detail: otlpEnabled
         ? "gateway traces carry a traceparent on every decision event"
-        : "gateway-side: set OTEL_ENABLED=true and OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+        : "set OTEL_ENABLED=true and OTEL_EXPORTER_OTLP_TRACES_ENDPOINT on a long-lived gateway process; the serverless deployment does not run the exporter",
       ok: otlpEnabled,
     },
     {

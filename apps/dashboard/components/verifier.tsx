@@ -17,7 +17,7 @@ const SAMPLE = JSON.stringify(
     intentId: "int_01J8ZQ4T7K",
     intentHash: "0x9f2b1c",
     policyHash: "0xab3f77",
-    guard: "0x4Bd0501fb1c0dEecaCD3efd50340Cd82Bb8E7F0f",
+    guard: "0x94FB7677358c44BB0617029a3162108Ae3aa557a",
     chainId: 11155111,
     verdict: "DENY",
     reasons: [
