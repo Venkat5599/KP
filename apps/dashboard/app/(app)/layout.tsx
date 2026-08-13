@@ -1,4 +1,5 @@
 import { AppNav } from "@/components/app-nav";
+import { ConnectWallet } from "@/components/connect-wallet";
 import { loadConfig } from "@/lib/env";
 import { shorten } from "@/lib/format";
 import { runProbe } from "@/lib/probe";
@@ -59,10 +60,13 @@ export default async function AppLayout({ children }: { children: ReactNode }): 
         {/* Top bar: chain identity only. Navigation lives in the sidebar. */}
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-border/70 bg-background/80 px-6 backdrop-blur-xl">
           <span className="shrink-0 font-mono text-sm font-semibold md:hidden">noyeet</span>
-          <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 px-3 py-1.5 font-mono text-xs">
-            <Radio className="size-3 text-muted-foreground" aria-hidden="true" />
-            {config.chainName === "" ? "unconfigured chain" : config.chainName}
-          </span>
+          <div className="ml-auto inline-flex shrink-0 items-center gap-2">
+            <ConnectWallet />
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 px-3 py-1.5 font-mono text-xs">
+              <Radio className="size-3 text-muted-foreground" aria-hidden="true" />
+              {config.chainName === "" ? "unconfigured chain" : config.chainName}
+            </span>
+          </div>
         </header>
 
         {/* Mobile nav row */}

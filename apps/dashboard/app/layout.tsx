@@ -1,4 +1,5 @@
 import { Providers } from "@/components/providers";
+import { Web3Providers } from "@/components/web3-providers";
 import { SkipToContent } from "@/components/skip-to-content";
 import { baseMetadata } from "@/lib/metadata";
 import type { Metadata, Viewport } from "next";
@@ -41,8 +42,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background font-sans text-foreground antialiased`}
       >
         <Providers>
-          <SkipToContent />
-          {children}
+          <Web3Providers>
+            <SkipToContent />
+            {children}
+          </Web3Providers>
         </Providers>
       </body>
     </html>

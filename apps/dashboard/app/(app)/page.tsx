@@ -1,4 +1,5 @@
 import { ExecutePanel } from "@/components/execute-panel";
+import { PositionPanel } from "@/components/position-panel";
 import { createMetadata } from "@/lib/metadata";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
@@ -21,6 +22,7 @@ export default function ExecutePage(): ReactNode {
       </h1>
       <div className="mt-4">
         <ExecutePanel />
+        <PositionPanel />
       </div>
     </section>
   );
